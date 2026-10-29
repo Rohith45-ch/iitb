@@ -18,26 +18,20 @@ MODELS_DIR = PROJECT_ROOT / "models"
 # Pre-optimized lightweight ONNX models for Edge Robotics
 MODEL_CATALOG = {
     "yolov8n": {
-        "description": "YOLOv8 Nano (320x320) - 3.2M params, high mAP, ~14 FPS on RPi 4B CPU",
-        "filename": "yolov8n_320.onnx",
-        "url": "https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.onnx",
+        "description": "YOLOv8 Nano (320x320) - 3.2M params, high mAP, standard for autonomous edge vision",
+        "filename": "yolov8n.onnx",
+        "url": "https://huggingface.co/cabelo/yolov8/resolve/main/yolov8n.onnx",
         "recommended": True,
     },
     "yolo11n": {
         "description": "YOLO11 Nano (320x320) - 2.6M params, latest Ultralytics architecture",
-        "filename": "yolo11n_320.onnx",
-        "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx",
-        "recommended": False,
-    },
-    "yolo_fastestv2": {
-        "description": "YOLO-Fastest v2 (352x352) - 250K params, ultra-high speed (45-60 FPS on RPi 4B CPU)",
-        "filename": "yolo_fastestv2.onnx",
-        "url": "https://raw.githubusercontent.com/dog-qiu/Yolo-FastestV2/master/model/yolo-fastestv2-opt.onnx",
+        "filename": "yolo11n.onnx",
+        "url": "https://huggingface.co/piky/yolo11/resolve/main/yolo11n.onnx",
         "recommended": False,
     },
     "mobilenet_ssd": {
-        "description": "MobileNetV2-SSD Lite (300x300) - 2.8M params, ~25 FPS on RPi 4B CPU",
-        "filename": "mobilenet_v2_ssd.onnx",
+        "description": "MobileNetV1-SSD Lite (300x300) - Lightweight edge detection benchmark",
+        "filename": "mobilenet_v1_ssd.onnx",
         "url": "https://github.com/onnx/models/raw/main/validated/vision/object_detection_segmentation/ssd-mobilenetv1/model/ssd_mobilenet_v1_12.onnx",
         "recommended": False,
     },
@@ -54,23 +48,48 @@ def download_model(model_key: str):
     target_path = MODELS_DIR / info["filename"]
 
     if target_path.exists():
-        print(f"[ModelFetcher] Model already present: {target_path}")
+        size_mb = target_path.stat().st_size / (1024 * 1024)
+        print(f"[ModelFetcher] Model already present: {target_path} ({size_mb:.1f} MB)")
         return True
 
-    print(f"[ModelFetcher] Downloading {model_key}: {info['description']}...")
-    print(f"[ModelFetcher] URL: {info['url']}")
+    print(f"\n[ModelFetcher] Downloading {model_key}...")
+    print(f"  Description: {info['description']}")
+    print(f"  Source URL:  {info['url']}")
+    print(f"  Target File: {target_path}")
 
     try:
-        def reporthook(count, block_size, total_size):
-            if total_size > 0:
-                percent = int(count * block_size * 100 / total_size)
-                sys.stdout.write(f"\r  Progress: {percent}% ({count * block_size / 1024 / 1024:.1f} MB)")
-                sys.stdout.flush()
+        req = urllib.request.Request(
+            info["url"],
+            headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0"}
+        )
+        with urllib.request.urlopen(req) as response:
+            total_size = int(response.headers.get("content-length", 0))
+            downloaded = 0
+            chunk_size = 64 * 1024  # 64 KB chunks
 
-        urllib.request.urlretrieve(info["url"], str(target_path), reporthook=reporthook)
-        print(f"\n[ModelFetcher] Download complete: {target_path}")
+            with open(target_path, "wb") as f:
+                while True:
+                    chunk = response.read(chunk_size)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0:
+                        pct = int(downloaded * 100 / total_size)
+                        mb = downloaded / (1024 * 1024)
+                        tot_mb = total_size / (1024 * 1024)
+                        sys.stdout.write(f"\r  Progress: {pct}% ({mb:.1f} / {tot_mb:.1f} MB)")
+                    else:
+                        mb = downloaded / (1024 * 1024)
+                        sys.stdout.write(f"\r  Downloaded: {mb:.1f} MB")
+                    sys.stdout.flush()
+
+        actual_size_mb = target_path.stat().st_size / (1024 * 1024)
+        print(f"\n[ModelFetcher] Download complete: {target_path.name} ({actual_size_mb:.2f} MB)")
         return True
     except Exception as e:
+        if target_path.exists():
+            target_path.unlink()
         print(f"\n[ModelFetcher] Download failed: {e}")
         return False
 

@@ -11,6 +11,13 @@ import cv2
 import numpy as np
 
 
+try:
+    import onnxruntime as ort
+    HAS_ORT = True
+except ImportError:
+    HAS_ORT = False
+
+
 @dataclass
 class AIDetection:
     class_id: int
@@ -24,6 +31,7 @@ class EdgeAIDetector:
     """
     Lightweight Edge AI Inference Engine for Raspberry Pi.
     Detects traffic lights, stop signs, pedestrians, and obstacles.
+    Supports ONNX Runtime (CPU) and OpenCV DNN.
     """
 
     COCO_CLASSES = {
@@ -36,13 +44,15 @@ class EdgeAIDetector:
     def __init__(
         self,
         model_path: Optional[str] = None,
-        input_size: Tuple[int, int] = (320, 320),
+        input_size: Tuple[int, int] = (640, 640),
         confidence_threshold: float = 0.45,
         nms_threshold: float = 0.40,
     ):
         self.input_size = input_size
         self.conf_thresh = confidence_threshold
         self.nms_thresh = nms_threshold
+        self.session = None
+        self.input_name = None
         self.net = None
         self.model_loaded = False
 
@@ -50,13 +60,33 @@ class EdgeAIDetector:
             self.load_model(model_path)
 
     def load_model(self, model_path: str) -> bool:
-        """Loads ONNX model into OpenCV DNN module with multi-threaded CPU execution."""
+        """Loads ONNX model using ONNX Runtime (fastest) or OpenCV DNN fallback."""
+        if HAS_ORT:
+            try:
+                opts = ort.SessionOptions()
+                opts.intra_op_num_threads = 4
+                opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                self.session = ort.InferenceSession(
+                    model_path,
+                    sess_options=opts,
+                    providers=["CPUExecutionProvider"],
+                )
+                self.input_name = self.session.get_inputs()[0].name
+                shape = self.session.get_inputs()[0].shape
+                if len(shape) == 4 and isinstance(shape[2], int) and isinstance(shape[3], int):
+                    self.input_size = (shape[3], shape[2])
+                self.model_loaded = True
+                print(f"[EdgeAIDetector] Successfully loaded ONNX model via ONNX Runtime: {model_path}")
+                return True
+            except Exception as e:
+                print(f"[EdgeAIDetector] ONNX Runtime failed: {e}. Trying cv2.dnn fallback...")
+
         try:
             self.net = cv2.dnn.readNetFromONNX(model_path)
             self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
             self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
             self.model_loaded = True
-            print(f"[EdgeAIDetector] Successfully loaded ONNX model: {model_path}")
+            print(f"[EdgeAIDetector] Successfully loaded ONNX model via cv2.dnn: {model_path}")
             return True
         except Exception as e:
             print(f"[EdgeAIDetector] Failed to load ONNX model: {e}")
@@ -65,27 +95,36 @@ class EdgeAIDetector:
 
     def detect(self, frame: np.ndarray) -> List[AIDetection]:
         """Runs forward inference on the camera frame."""
-        if not self.model_loaded or self.net is None:
+        if not self.model_loaded:
             return []
 
         h, w, _ = frame.shape
-        # Prepare letterbox blob (normalized to 0-1, RGB)
-        blob = cv2.dnn.blobFromImage(
-            frame,
-            scalefactor=1.0 / 255.0,
-            size=self.input_size,
-            swapRB=True,
-            crop=False,
-        )
-        self.net.setInput(blob)
-        outputs = self.net.forward()
+        iw, ih = self.input_size
 
-        # Parse outputs (e.g. YOLOv8 format: [1, 84, 2100])
+        if self.session is not None:
+            # ONNX Runtime path
+            resized = cv2.resize(frame, (iw, ih))
+            blob = resized.transpose((2, 0, 1))[np.newaxis, ...].astype(np.float32) / 255.0
+            outputs = self.session.run(None, {self.input_name: blob})[0]
+        elif self.net is not None:
+            # OpenCV DNN path
+            blob = cv2.dnn.blobFromImage(
+                frame,
+                scalefactor=1.0 / 255.0,
+                size=(iw, ih),
+                swapRB=True,
+                crop=False,
+            )
+            self.net.setInput(blob)
+            outputs = self.net.forward()
+        else:
+            return []
+
         detections = []
         if len(outputs.shape) == 3:
             predictions = outputs[0]
             if predictions.shape[0] < predictions.shape[1]:
-                predictions = predictions.T  # Transpose to (num_boxes, 84)
+                predictions = predictions.T
 
             boxes = []
             confidences = []
