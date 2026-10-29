@@ -1,0 +1,276 @@
+/*
+  Urban Autonomous Mobility Challenge (UAMC) - ESP32 Real-Time Vehicle Controller
+  Platform: ESP32 (Dual-Core 240MHz, FreeRTOS)
+  Target: UAMC 1:10 Autonomous Vehicle
+
+  Architecture:
+  - Core 0: Non-blocking ultrasonic ranging, encoder tracking, and telemetry formatting.
+  - Core 1: High-speed UART communication, watchdog monitor, and high-frequency PWM actuation.
+*/
+
+#include <Arduino.h>
+
+// ==========================================
+// PIN CONFIGURATION (ESP32 DevKit V1)
+// ==========================================
+// Actuators
+#define PIN_STEER_SERVO       18  // Steering Servo (LEDC Channel 0, 50Hz)
+#define PIN_MOTOR_PWM         19  // Motor Speed PWM (LEDC Channel 1, 20kHz silent)
+#define PIN_MOTOR_DIR_A       22  // Motor Direction IN1
+#define PIN_MOTOR_DIR_B       23  // Motor Direction IN2
+
+// Ultrasonic Array (HC-SR04)
+#define PIN_US_TRIG           5   // Shared Trigger Pin
+#define PIN_US_ECHO_LEFT      34  // Left Echo (Input-Only Pin, 3.3V divided)
+#define PIN_US_ECHO_CENTER    35  // Center Echo (Input-Only Pin, 3.3V divided)
+#define PIN_US_ECHO_RIGHT     32  // Right Echo (3.3V divided)
+#define PIN_US_ECHO_SIDE      33  // Lateral Parking Echo (3.3V divided)
+
+// Wheel Encoders (Hardware Interrupts)
+#define PIN_ENCODER_LEFT      25  // Dual-channel / Single-channel Left
+#define PIN_ENCODER_RIGHT     26  // Dual-channel / Single-channel Right
+
+// Emergency Stop Kill Switch
+#define PIN_ESTOP_INPUT       27  // Active LOW hardware switch
+
+// Communication (Direct UART to Raspberry Pi)
+#define PIN_UART_RX           16  // ESP32 RX2 connected to RPi TXD (GPIO 14)
+#define PIN_UART_TX           17  // ESP32 TX2 connected to RPi RXD (GPIO 15)
+
+// ==========================================
+// PWM CONFIGURATION (LEDC)
+// ==========================================
+#define SERVO_LEDC_CH         0
+#define SERVO_LEDC_FREQ       50       // 50 Hz standard analog/digital servo
+#define SERVO_LEDC_RES        16       // 16-bit resolution (0 - 65535)
+
+#define MOTOR_LEDC_CH         1
+#define MOTOR_LEDC_FREQ       20000    // 20 kHz ultrasonic frequency (no motor audible whine)
+#define MOTOR_LEDC_RES        8        // 8-bit resolution (0 - 255)
+
+// Servo Pulse Widths in Microseconds
+const uint32_t SERVO_MIN_US    = 1000;  // Full Left (-28 deg)
+const uint32_t SERVO_MID_US    = 1500;  // Center (0 deg)
+const uint32_t SERVO_MAX_US    = 2000;  // Full Right (+28 deg)
+
+// ==========================================
+// SHARED STATE & THREAD SYNCHRONIZATION
+// ==========================================
+volatile long encoderTicksLeft = 0;
+volatile long encoderTicksRight = 0;
+portMUX_TYPE muxEncoder = portMUX_INITIALIZER_UNLOCKED;
+
+volatile float g_us_left = 2.0;
+volatile float g_us_center = 2.0;
+volatile float g_us_right = 2.0;
+volatile float g_us_side = 0.20;
+volatile bool g_estop_button_pressed = false;
+
+// Command Watchdog
+const unsigned long WATCHDOG_TIMEOUT_MS = 150;
+volatile unsigned long lastCommandMillis = 0;
+volatile bool watchdogTripped = false;
+
+// ==========================================
+// INTERRUPT SERVICE ROUTINES (ISRs)
+// ==========================================
+void IRAM_ATTR isrEncoderLeft() {
+  portENTER_CRITICAL_ISR(&muxEncoder);
+  encoderTicksLeft++;
+  portEXIT_CRITICAL_ISR(&muxEncoder);
+}
+
+void IRAM_ATTR isrEncoderRight() {
+  portENTER_CRITICAL_ISR(&muxEncoder);
+  encoderTicksRight++;
+  portEXIT_CRITICAL_ISR(&muxEncoder);
+}
+
+// ==========================================
+// ACTUATOR OUTPUT FUNCTIONS
+// ==========================================
+void setSteeringNormalized(float norm) {
+  // norm is in [-1.0 (left), +1.0 (right)]
+  norm = constrain(norm, -1.0f, 1.0f);
+  // Map norm to microseconds [1000us - 2000us]
+  float us = SERVO_MID_US + (norm * (SERVO_MAX_US - SERVO_MID_US));
+  // Convert us to LEDC 16-bit duty cycle at 50Hz (Period = 20,000 us)
+  // duty = (us / 20000) * 65535
+  uint32_t duty = (uint32_t)((us / 20000.0f) * 65535.0f);
+  ledcWrite(SERVO_LEDC_CH, duty);
+}
+
+void setMotorThrottle(float norm) {
+  // norm in [-1.0 (reverse/brake), +1.0 (forward)]
+  norm = constrain(norm, -1.0f, 1.0f);
+
+  if (abs(norm) < 0.05f) {
+    // Dynamic Electronic Braking
+    digitalWrite(PIN_MOTOR_DIR_A, HIGH);
+    digitalWrite(PIN_MOTOR_DIR_B, HIGH);
+    ledcWrite(MOTOR_LEDC_CH, 0);
+  } else if (norm > 0.0f) {
+    // Forward
+    digitalWrite(PIN_MOTOR_DIR_A, HIGH);
+    digitalWrite(PIN_MOTOR_DIR_B, LOW);
+    uint32_t pwm = (uint32_t)(norm * 255.0f);
+    ledcWrite(MOTOR_LEDC_CH, pwm);
+  } else {
+    // Reverse / Active Brake
+    digitalWrite(PIN_MOTOR_DIR_A, LOW);
+    digitalWrite(PIN_MOTOR_DIR_B, HIGH);
+    uint32_t pwm = (uint32_t)(abs(norm) * 255.0f);
+    ledcWrite(MOTOR_LEDC_CH, pwm);
+  }
+}
+
+// ==========================================
+// CORE 0 TASK: SENSOR ACQUISITION
+// ==========================================
+float readUltrasonic(int echoPin) {
+  digitalWrite(PIN_US_TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(PIN_US_TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(PIN_US_TRIG, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 20000); // 20ms timeout (~3.4m)
+  if (duration <= 0) return 3.0f;
+  return (duration * 0.0343f) / 200.0f;
+}
+
+void TaskSensorAcquisition(void *pvParameters) {
+  while (true) {
+    // Trigger and read ultrasonic array in round-robin
+    g_us_left = readUltrasonic(PIN_US_ECHO_LEFT);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    g_us_center = readUltrasonic(PIN_US_ECHO_CENTER);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    g_us_right = readUltrasonic(PIN_US_ECHO_RIGHT);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    g_us_side = readUltrasonic(PIN_US_ECHO_SIDE);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    g_estop_button_pressed = (digitalRead(PIN_ESTOP_INPUT) == LOW);
+  }
+}
+
+// ==========================================
+// SETUP & CORE 1 (MAIN LOOP)
+// ==========================================
+void setup() {
+  // Primary Serial for USB debug & secondary for RPi UART
+  Serial.begin(115200);
+  Serial2.begin(115200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
+
+  // Pin Modes
+  pinMode(PIN_MOTOR_DIR_A, OUTPUT);
+  pinMode(PIN_MOTOR_DIR_B, OUTPUT);
+  pinMode(PIN_US_TRIG, OUTPUT);
+  pinMode(PIN_US_ECHO_LEFT, INPUT);
+  pinMode(PIN_US_ECHO_CENTER, INPUT);
+  pinMode(PIN_US_ECHO_RIGHT, INPUT);
+  pinMode(PIN_US_ECHO_SIDE, INPUT);
+  pinMode(PIN_ESTOP_INPUT, INPUT_PULLUP);
+
+  // LEDC PWM Setup
+  ledcSetup(SERVO_LEDC_CH, SERVO_LEDC_FREQ, SERVO_LEDC_RES);
+  ledcAttachPin(PIN_STEER_SERVO, SERVO_LEDC_CH);
+
+  ledcSetup(MOTOR_LEDC_CH, MOTOR_LEDC_FREQ, MOTOR_LEDC_RES);
+  ledcAttachPin(PIN_MOTOR_PWM, MOTOR_LEDC_CH);
+
+  // Set initial safe states
+  setSteeringNormalized(0.0f);
+  setMotorThrottle(0.0f);
+
+  // Encoders with Hardware Interrupts
+  pinMode(PIN_ENCODER_LEFT, INPUT_PULLUP);
+  pinMode(PIN_ENCODER_RIGHT, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT), isrEncoderLeft, RISING);
+  attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_RIGHT), isrEncoderRight, RISING);
+
+  // Launch Core 0 Sensor Task (Pinned to Core 0)
+  xTaskCreatePinnedToCore(
+    TaskSensorAcquisition,
+    "SensorTask",
+    4096,
+    NULL,
+    1,
+    NULL,
+    0
+  );
+
+  lastCommandMillis = millis();
+}
+
+unsigned long lastTelemetryMillis = 0;
+
+void loop() {
+  // 1. Process Incoming Commands from Raspberry Pi
+  Stream &comm = Serial2.available() ? Serial2 : Serial;
+
+  if (comm.available()) {
+    String line = comm.readStringUntil('\n');
+    line.trim();
+
+    if (line.startsWith("#CMD,") && line.endsWith("*")) {
+      String payload = line.substring(5, line.length() - 1);
+      int c1 = payload.indexOf(',');
+      int c2 = payload.indexOf(',', c1 + 1);
+
+      if (c1 > 0 && c2 > 0) {
+        float steer = payload.substring(0, c1).toFloat();
+        float throttle = payload.substring(c1 + 1, c2).toFloat();
+        int estop = payload.substring(c2 + 1).toInt();
+
+        if (estop == 1 || g_estop_button_pressed) {
+          setMotorThrottle(0.0f);
+          setSteeringNormalized(0.0f);
+        } else {
+          setSteeringNormalized(steer);
+          setMotorThrottle(throttle);
+        }
+
+        lastCommandMillis = millis();
+        watchdogTripped = false;
+      }
+    }
+  }
+
+  // 2. Hardware Watchdog Check
+  if (millis() - lastCommandMillis > WATCHDOG_TIMEOUT_MS) {
+    setMotorThrottle(0.0f);
+    setSteeringNormalized(0.0f);
+    watchdogTripped = true;
+  }
+
+  // 3. Telemetry Transmission to Raspberry Pi at 30 Hz
+  if (millis() - lastTelemetryMillis >= 33) {
+    lastTelemetryMillis = millis();
+
+    long encL, encR;
+    portENTER_CRITICAL(&muxEncoder);
+    encL = encoderTicksLeft;
+    encR = encoderTicksRight;
+    portEXIT_CRITICAL(&muxEncoder);
+
+    // Packet: #TEL,<us_l>,<us_c>,<us_r>,<us_s>,<enc_l>,<enc_r>,<yaw>,<estop>*
+    String telem = "#TEL,";
+    telem += String(g_us_left, 2) + ",";
+    telem += String(g_us_center, 2) + ",";
+    telem += String(g_us_right, 2) + ",";
+    telem += String(g_us_side, 2) + ",";
+    telem += String(encL) + ",";
+    telem += String(encR) + ",";
+    telem += "0.0,";
+    telem += (g_estop_button_pressed || watchdogTripped ? "1" : "0");
+    telem += "*\n";
+
+    Serial2.print(telem);
+    Serial.print(telem); // Mirror to USB serial for debugging
+  }
+}

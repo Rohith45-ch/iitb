@@ -61,6 +61,7 @@ uamc/
 
 Complete engineering specifications, derivations, and guides are located in the `docs/` folder:
 - [Technical Design Document (TDD)](docs/TECHNICAL_DESIGN_DOCUMENT.md) — *Official 1–2 page submission document for Round 1*
+- [ESP32 & Raspberry Pi Wiring Guide](docs/ESP32_RPI_WIRING_GUIDE.md) — *Detailed pinouts, 3.3V logic level shifting, and power distribution*
 - [Problem Statement Analysis](docs/PROBLEM_STATEMENT_ANALYSIS.md) — *Breakdown of competition rounds, scoring system, and penalty mitigations*
 - [Engineering Calculations & Math Models](docs/ENGINEERING_CALCULATIONS.md) — *Ackermann turning radius, braking distance, IPM, and controller tuning*
 - [Round 1 Action Plan & Video Guide](docs/ROUND1_ACTION_PLAN.md) — *Step-by-step guide to construct the practice track and film the 3–5 min video*
@@ -93,6 +94,15 @@ Run the automated test suite verifying lane detection, FSM transitions, and cont
 ```bash
 python3 -m unittest discover tests
 ```
+
+### Using Gemini from the Terminal
+Create a new key in Google AI Studio after revoking any key shared in chat, then set it only in your current shell:
+```bash
+export GEMINI_API_KEY='paste-the-new-key-here'
+python3 scripts/gemini_chat.py "Explain the current vehicle architecture"
+python3 scripts/gemini_chat.py
+```
+The interactive client accepts prompts until `/exit`. The key is read from the environment and is not stored in this repository.
 
 ### Deploying on the Physical Vehicle
 To start autonomous driving on the physical Raspberry Pi / Jetson car:
