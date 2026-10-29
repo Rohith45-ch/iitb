@@ -66,12 +66,16 @@ class SerialBridge:
             self.running = True
             self.thread = threading.Thread(target=self._rx_worker, daemon=True)
             self.thread.start()
-            print(f"[SerialBridge] Connected to MCU on {self.port} at {self.baudrate} baud.")
+            print(f"[SerialBridge] Connected to physical MCU on {self.port} at {self.baudrate} baud.")
             return True
         except Exception as e:
-            print(f"[SerialBridge] Serial port {self.port} not found ({e}). Running in loopback/sim mode.")
+            print(f"[SerialBridge] Physical serial port {self.port} not found ({e}).")
+            print("[SerialBridge] Initializing internal Virtual ESP32 MCU Bridge (30 Hz loopback)...")
             self.is_connected = False
-            return False
+            self.running = True
+            self.thread = threading.Thread(target=self._sim_esp32_worker, daemon=True)
+            self.thread.start()
+            return True
 
     def send_actuator_command(
         self,
@@ -79,17 +83,64 @@ class SerialBridge:
         throttle_normalized: float,
         estop: bool = False,
     ):
-        """Sends control command packet to Arduino/ESP32."""
+        """Sends control command packet to Arduino/ESP32 or updates virtual MCU."""
         packet = f"#CMD,{steering_normalized:.3f},{throttle_normalized:.3f},{1 if estop else 0}*\n"
         if self.is_connected and self.serial_conn:
             try:
                 self.serial_conn.write(packet.encode("ascii"))
             except Exception as e:
                 print(f"[SerialBridge] Send error: {e}")
+        else:
+            # Virtual ESP32 internal command handler
+            with self.lock:
+                self._sim_steer = steering_normalized
+                self._sim_throttle = 0.0 if estop else throttle_normalized
+                self._sim_estop = estop
 
     def get_telemetry(self) -> TelemetryPacket:
         with self.lock:
             return self.latest_telemetry
+
+    def _sim_esp32_worker(self):
+        """Simulates the ESP32 dual-core FreeRTOS firmware internally at 30 Hz."""
+        self._sim_steer = 0.0
+        self._sim_throttle = 0.0
+        self._sim_estop = False
+        sim_speed = 0.0
+        sim_heading = 0.0
+        enc_ticks = 0
+        last_t = time.time()
+
+        while self.running:
+            time.sleep(0.033)  # 30 Hz telemetry rate
+            now = time.time()
+            dt = max(0.001, now - last_t)
+            last_t = now
+
+            with self.lock:
+                # Update simulated kinematics
+                target_v = self._sim_throttle * 0.50
+                sim_speed += (target_v - sim_speed) * min(1.0, 4.0 * dt)
+                if self._sim_estop:
+                    sim_speed = 0.0
+
+                steer_rad = self._sim_steer * 0.488  # ~28 deg max
+                yaw_rate = (sim_speed / 0.260) * 0.5 * steer_rad
+                sim_heading += yaw_rate * 57.29 * dt
+                enc_ticks += int(sim_speed * 1000 * dt)
+
+                # Simulated filtered sonars (clear road)
+                self.latest_telemetry = TelemetryPacket(
+                    timestamp=now,
+                    ultrasonic_left_m=1.85,
+                    ultrasonic_center_m=1.80,
+                    ultrasonic_right_m=1.85,
+                    ultrasonic_side_m=0.22,
+                    encoder_ticks_left=enc_ticks,
+                    encoder_ticks_right=enc_ticks,
+                    yaw_deg=sim_heading,
+                    is_hardware_estop_pressed=self._sim_estop,
+                )
 
     def _rx_worker(self):
         while self.running and self.serial_conn:
