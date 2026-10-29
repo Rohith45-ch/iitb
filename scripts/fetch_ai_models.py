@@ -18,14 +18,28 @@ MODELS_DIR = PROJECT_ROOT / "models"
 # Pre-optimized lightweight ONNX models for Edge Robotics
 MODEL_CATALOG = {
     "yolov8n": {
-        "description": "YOLOv8 Nano (320x320) - 3.2MB (Stop signs, traffic lights, pedestrians, cars)",
+        "description": "YOLOv8 Nano (320x320) - 3.2M params, high mAP, ~14 FPS on RPi 4B CPU",
         "filename": "yolov8n_320.onnx",
         "url": "https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.onnx",
+        "recommended": True,
+    },
+    "yolo11n": {
+        "description": "YOLO11 Nano (320x320) - 2.6M params, latest Ultralytics architecture",
+        "filename": "yolo11n_320.onnx",
+        "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx",
+        "recommended": False,
+    },
+    "yolo_fastestv2": {
+        "description": "YOLO-Fastest v2 (352x352) - 250K params, ultra-high speed (45-60 FPS on RPi 4B CPU)",
+        "filename": "yolo_fastestv2.onnx",
+        "url": "https://raw.githubusercontent.com/dog-qiu/Yolo-FastestV2/master/model/yolo-fastestv2-opt.onnx",
+        "recommended": False,
     },
     "mobilenet_ssd": {
-        "description": "MobileNetV2-SSD Lite (300x300) - 6.8MB (Fast object detection)",
+        "description": "MobileNetV2-SSD Lite (300x300) - 2.8M params, ~25 FPS on RPi 4B CPU",
         "filename": "mobilenet_v2_ssd.onnx",
         "url": "https://github.com/onnx/models/raw/main/validated/vision/object_detection_segmentation/ssd-mobilenetv1/model/ssd_mobilenet_v1_12.onnx",
+        "recommended": False,
     },
 }
 
@@ -63,7 +77,12 @@ def download_model(model_key: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch Edge AI Models for UAMC Raspberry Pi")
-    parser.add_argument("--model", choices=["yolov8n", "mobilenet_ssd", "all"], default="yolov8n")
+    parser.add_argument(
+        "--model",
+        choices=list(MODEL_CATALOG.keys()) + ["all"],
+        default="yolov8n",
+        help="Model architecture to fetch",
+    )
     args = parser.parse_args()
 
     print("=" * 65)
