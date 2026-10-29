@@ -16,9 +16,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from uamc.control.longitudinal_controller import LongitudinalPIDController
+from uamc.control.pilotnet_controller import PilotNetController
 from uamc.control.pure_pursuit import PurePursuitController
 from uamc.hal.camera_interface import CameraInterface
 from uamc.hal.serial_bridge import SerialBridge
+from uamc.perception.ai_detector import EdgeAIDetector
 from uamc.perception.lane_detector import LaneDetector
 from uamc.perception.obstacle_detector import ObstacleDetector
 from uamc.perception.pedestrian import PedestrianDetector
@@ -34,6 +36,8 @@ def main():
     parser.add_argument("--serial-port", type=str, default="/dev/ttyUSB0", help="MCU Serial Port")
     parser.add_argument("--baudrate", type=int, default=115200, help="MCU Baudrate")
     parser.add_argument("--no-gui", action="store_true", help="Run in headless mode without X11 windows")
+    parser.add_argument("--use-yolo", action="store_true", help="Enable YOLOv8n edge object detection")
+    parser.add_argument("--use-pilotnet", action="store_true", help="Enable PilotNet neural end-to-end steering")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -59,6 +63,9 @@ def main():
     lateral_ctrl = PurePursuitController(wheelbase_m=0.260, max_steering_angle_deg=28.0)
     longitudinal_ctrl = LongitudinalPIDController(kp=1.8, ki=0.45, kd=0.08)
     safety_mgr = EmergencyStopManager(heartbeat_timeout_s=0.20)
+
+    ai_detector = EdgeAIDetector(model_path="models/yolov8n.onnx") if args.use_yolo else None
+    pilotnet = PilotNetController(model_path="models/pilotnet_steering.onnx") if args.use_pilotnet else None
 
     print("[Main] All subsystems initialized. Commencing autonomous loop...")
     last_time = time.time()
@@ -88,9 +95,17 @@ def main():
                 safety_mgr.trigger_estop("Hardware Kill Switch Activated on MCU")
 
             # --- Perception Pipeline ---
+            tl_bbox = None
+            if ai_detector is not None:
+                ai_detections = ai_detector.detect(frame)
+                for d in ai_detections:
+                    if d.label == "traffic_light":
+                        tl_bbox = d.bbox
+                        break
+
             lane_res = lane_detector.detect_lanes(frame)
             signs = sign_detector.detect_signs(frame)
-            light_res = light_detector.detect(frame)
+            light_res = light_detector.detect(frame, bbox=tl_bbox)
             ped_res = pedestrian_detector.detect(frame)
             obs_res = obstacle_detector.process(
                 ultrasonic_left_m=telemetry.ultrasonic_left_m,
@@ -113,13 +128,20 @@ def main():
             )
 
             # --- Control Execution ---
-            # Steering
-            steer_out = lateral_ctrl.compute_steering(
-                lateral_offset_m=lane_res.lateral_offset_m if lane_res.is_valid else 0.0,
-                heading_error_rad=lane_res.heading_error_rad if lane_res.is_valid else 0.0,
-                current_velocity_ms=measured_speed,
-                steering_bias=cmd.target_steering_bias,
-            )
+            # Steering: PilotNet Neural Steering or Classical Pure Pursuit
+            if pilotnet is not None:
+                steer_norm, steer_deg = pilotnet.predict_steering(frame)
+                steer_pwm = steer_norm
+                steer_display_deg = steer_deg
+            else:
+                steer_out = lateral_ctrl.compute_steering(
+                    lateral_offset_m=lane_res.lateral_offset_m if lane_res.is_valid else 0.0,
+                    heading_error_rad=lane_res.heading_error_rad if lane_res.is_valid else 0.0,
+                    current_velocity_ms=measured_speed,
+                    steering_bias=cmd.target_steering_bias,
+                )
+                steer_pwm = steer_out.servo_pwm_normalized
+                steer_display_deg = steer_out.steering_angle_deg
 
             # Throttle
             throttle_out = longitudinal_ctrl.compute_throttle(
@@ -130,7 +152,7 @@ def main():
 
             # Send commands to MCU
             serial_bridge.send_actuator_command(
-                steering_normalized=steer_out.servo_pwm_normalized,
+                steering_normalized=steer_pwm,
                 throttle_normalized=throttle_out.throttle_pwm_normalized,
                 estop=safety_status.estop_active,
             )
@@ -138,6 +160,17 @@ def main():
             # GUI Display / Video Feed overlay
             if not args.no_gui:
                 hud = lane_res.debug_frame.copy()
+                if ai_detector is not None:
+                    hud = ai_detector.draw_detections(hud, ai_detections)
+                cv2.putText(
+                    hud,
+                    f"MODE: {'PilotNet Neural' if pilotnet else 'Pure Pursuit'} | Steer: {steer_display_deg:+.1f} deg",
+                    (20, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.55,
+                    (255, 255, 0),
+                    2,
+                )
                 cv2.putText(
                     hud,
                     f"STATE: {cmd.state.value} | {cmd.description}",
