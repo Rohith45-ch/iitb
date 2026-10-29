@@ -6,6 +6,7 @@ from uamc.perception.traffic_lights import TrafficLightDetector, TrafficLightRes
 from uamc.perception.pedestrian import PedestrianDetector, PedestrianCrossingResult
 from uamc.perception.obstacle_detector import ObstacleDetector, ObstacleState, ObstacleThreat
 from uamc.perception.parking_detector import ParkingDetector, ParkingDetection, ParkingSlotState
+from uamc.perception.ai_detector import EdgeAIDetector, AIDetection
 
 __all__ = [
     "LaneDetector",
@@ -24,4 +25,6 @@ __all__ = [
     "ParkingDetector",
     "ParkingDetection",
     "ParkingSlotState",
+    "EdgeAIDetector",
+    "AIDetection",
 ]
