@@ -9,51 +9,9 @@
 */
 
 #include <Arduino.h>
+#include "esp32_config.h"
 #include "tinyml_motion.h"
 #include "ultrasonic_filter.h"
-
-// ==========================================
-// PIN CONFIGURATION (ESP32 DevKit V1)
-// ==========================================
-// Actuators
-#define PIN_STEER_SERVO       18  // Steering Servo (LEDC Channel 0, 50Hz)
-#define PIN_MOTOR_PWM         19  // Motor Speed PWM (LEDC Channel 1, 20kHz silent)
-#define PIN_MOTOR_DIR_A       22  // Motor Direction IN1
-#define PIN_MOTOR_DIR_B       23  // Motor Direction IN2
-
-// Ultrasonic Array (HC-SR04)
-#define PIN_US_TRIG           5   // Shared Trigger Pin
-#define PIN_US_ECHO_LEFT      34  // Left Echo (Input-Only Pin, 3.3V divided)
-#define PIN_US_ECHO_CENTER    35  // Center Echo (Input-Only Pin, 3.3V divided)
-#define PIN_US_ECHO_RIGHT     32  // Right Echo (3.3V divided)
-#define PIN_US_ECHO_SIDE      33  // Lateral Parking Echo (3.3V divided)
-
-// Wheel Encoders (Hardware Interrupts)
-#define PIN_ENCODER_LEFT      25  // Dual-channel / Single-channel Left
-#define PIN_ENCODER_RIGHT     26  // Dual-channel / Single-channel Right
-
-// Emergency Stop Kill Switch
-#define PIN_ESTOP_INPUT       27  // Active LOW hardware switch
-
-// Communication (Direct UART to Raspberry Pi)
-#define PIN_UART_RX           16  // ESP32 RX2 connected to RPi TXD (GPIO 14)
-#define PIN_UART_TX           17  // ESP32 TX2 connected to RPi RXD (GPIO 15)
-
-// ==========================================
-// PWM CONFIGURATION (LEDC)
-// ==========================================
-#define SERVO_LEDC_CH         0
-#define SERVO_LEDC_FREQ       50       // 50 Hz standard analog/digital servo
-#define SERVO_LEDC_RES        16       // 16-bit resolution (0 - 65535)
-
-#define MOTOR_LEDC_CH         1
-#define MOTOR_LEDC_FREQ       20000    // 20 kHz ultrasonic frequency (no motor audible whine)
-#define MOTOR_LEDC_RES        8        // 8-bit resolution (0 - 255)
-
-// Servo Pulse Widths in Microseconds
-const uint32_t SERVO_MIN_US    = 1000;  // Full Left (-28 deg)
-const uint32_t SERVO_MID_US    = 1500;  // Center (0 deg)
-const uint32_t SERVO_MAX_US    = 2000;  // Full Right (+28 deg)
 
 // ==========================================
 // SHARED STATE & THREAD SYNCHRONIZATION
@@ -76,8 +34,7 @@ UltrasonicFilter filterSide;
 TinyMLMotionClassifier motionClassifier;
 volatile VehicleMotionState g_motion_state = MOTION_NOMINAL;
 
-// Command Watchdog
-const unsigned long WATCHDOG_TIMEOUT_MS = 150;
+// Command Watchdog State
 volatile unsigned long lastCommandMillis = 0;
 volatile bool watchdogTripped = false;
 
