@@ -9,6 +9,8 @@
 */
 
 #include <Arduino.h>
+#include "tinyml_motion.h"
+#include "ultrasonic_filter.h"
 
 // ==========================================
 // PIN CONFIGURATION (ESP32 DevKit V1)
@@ -60,11 +62,19 @@ volatile long encoderTicksLeft = 0;
 volatile long encoderTicksRight = 0;
 portMUX_TYPE muxEncoder = portMUX_INITIALIZER_UNLOCKED;
 
-volatile float g_us_left = 2.0;
-volatile float g_us_center = 2.0;
-volatile float g_us_right = 2.0;
-volatile float g_us_side = 0.20;
+volatile float g_us_left = 2.0f;
+volatile float g_us_center = 2.0f;
+volatile float g_us_right = 2.0f;
+volatile float g_us_side = 0.20f;
 volatile bool g_estop_button_pressed = false;
+
+// Edge AI & Outlier Filter Instances
+UltrasonicFilter filterLeft;
+UltrasonicFilter filterCenter;
+UltrasonicFilter filterRight;
+UltrasonicFilter filterSide;
+TinyMLMotionClassifier motionClassifier;
+volatile VehicleMotionState g_motion_state = MOTION_NOMINAL;
 
 // Command Watchdog
 const unsigned long WATCHDOG_TIMEOUT_MS = 150;
@@ -141,20 +151,28 @@ float readUltrasonic(int echoPin) {
 
 void TaskSensorAcquisition(void *pvParameters) {
   while (true) {
-    // Trigger and read ultrasonic array in round-robin
-    g_us_left = readUltrasonic(PIN_US_ECHO_LEFT);
+    // 1. Read ultrasonic sensors and filter outliers & acoustic multipath echoes
+    float raw_l = readUltrasonic(PIN_US_ECHO_LEFT);
+    g_us_left = filterLeft.filter(raw_l);
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    g_us_center = readUltrasonic(PIN_US_ECHO_CENTER);
+    float raw_c = readUltrasonic(PIN_US_ECHO_CENTER);
+    g_us_center = filterCenter.filter(raw_c);
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    g_us_right = readUltrasonic(PIN_US_ECHO_RIGHT);
+    float raw_r = readUltrasonic(PIN_US_ECHO_RIGHT);
+    g_us_right = filterRight.filter(raw_r);
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    g_us_side = readUltrasonic(PIN_US_ECHO_SIDE);
+    float raw_s = readUltrasonic(PIN_US_ECHO_SIDE);
+    g_us_side = filterSide.filter(raw_s);
     vTaskDelay(pdMS_TO_TICKS(10));
 
+    // 2. Hardware Emergency Stop button
     g_estop_button_pressed = (digitalRead(PIN_ESTOP_INPUT) == LOW);
+
+    // 3. TinyML Collision & Rollover Check (100 Hz baseline)
+    g_motion_state = motionClassifier.classify(0.0f, 0.0f, 1.0f, 0.0f, 0.0f);
   }
 }
 
@@ -227,7 +245,8 @@ void loop() {
         float throttle = payload.substring(c1 + 1, c2).toFloat();
         int estop = payload.substring(c2 + 1).toInt();
 
-        if (estop == 1 || g_estop_button_pressed) {
+        bool motionAnomaly = (g_motion_state == MOTION_COLLISION_DETECTED || g_motion_state == MOTION_ROLLOVER_DETECTED);
+        if (estop == 1 || g_estop_button_pressed || motionAnomaly) {
           setMotorThrottle(0.0f);
           setSteeringNormalized(0.0f);
         } else {
@@ -258,6 +277,10 @@ void loop() {
     encR = encoderTicksRight;
     portEXIT_CRITICAL(&muxEncoder);
 
+    bool isEstop = (g_estop_button_pressed || watchdogTripped ||
+                    g_motion_state == MOTION_COLLISION_DETECTED ||
+                    g_motion_state == MOTION_ROLLOVER_DETECTED);
+
     // Packet: #TEL,<us_l>,<us_c>,<us_r>,<us_s>,<enc_l>,<enc_r>,<yaw>,<estop>*
     String telem = "#TEL,";
     telem += String(g_us_left, 2) + ",";
@@ -267,7 +290,7 @@ void loop() {
     telem += String(encL) + ",";
     telem += String(encR) + ",";
     telem += "0.0,";
-    telem += (g_estop_button_pressed || watchdogTripped ? "1" : "0");
+    telem += (isEstop ? "1" : "0");
     telem += "*\n";
 
     Serial2.print(telem);
