@@ -8,6 +8,10 @@
 > **Core Theme:** *"A self-driving car navigating a smart city street."*  
 > An autonomous 1:10 scaled vehicle engineered to navigate a miniature tabletop urban street network with **100% onboard physical AI** and zero live remote control.
 
+> [!IMPORTANT]
+> **Received your Raspberry Pi 4B & ESP32 hardware?**  
+> Follow the master checklist: **[START_HERE_HARDWARE_SETUP.md](START_HERE_HARDWARE_SETUP.md)** to plug in, test, and launch the vehicle step-by-step.
+
 ---
 
 ## 1. Problem Statement & Scope
