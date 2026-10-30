@@ -14,9 +14,9 @@
 // ==========================================
 // Actuators
 #define PIN_STEER_SERVO          18   // Steering Servo (LEDC Channel 0, 50Hz)
-#define PIN_MOTOR_PWM            19   // Motor Speed PWM (LEDC Channel 1, 20kHz)
-#define PIN_MOTOR_DIR_A          22   // Motor Driver H-Bridge IN1
-#define PIN_MOTOR_DIR_B          23   // Motor Driver H-Bridge IN2
+#define PIN_MOTOR_PWM            19   // Motor Speed / ESC Signal (Pin 19)
+#define PIN_MOTOR_DIR_A          22   // (Legacy L298N only) Motor Driver IN1
+#define PIN_MOTOR_DIR_B          23   // (Legacy L298N only) Motor Driver IN2
 
 // Ultrasonic Sensor Array (HC-SR04)
 #define PIN_US_TRIG              5    // Shared 10us Trigger Pin
@@ -49,15 +49,27 @@
 #define SERVO_MAX_PHYSICAL_DEG   28.0f     // Maximum physical Ackermann steering travel
 
 // ==========================================
-// 3. MOTOR DRIVE & PWM TUNING
+// 3. MOTOR DRIVE & ESC CALIBRATION (1/10 RC)
 // ==========================================
-#define MOTOR_LEDC_CH            1
-#define MOTOR_LEDC_FREQ          20000     // 20 kHz ultrasonic PWM (silent, no motor whining)
-#define MOTOR_LEDC_RES           8         // 8-bit resolution (0 - 255)
+// Set to 1 for RC ESC (recommended for 1:10 chassis), or 0 for dual-wire L298N
+#define USE_ESC_MOTOR_DRIVER     1
 
-// Motor Deadband & Power Limits
-#define MOTOR_MIN_START_PWM      35        // Minimum PWM duty to overcome gearbox static friction
-#define MOTOR_MAX_SAFE_PWM       220       // Maximum duty cycle cap (prevents motor overheating)
+// ESC Servo-style PWM Tuning (when USE_ESC_MOTOR_DRIVER == 1)
+#define ESC_LEDC_CH              1
+#define ESC_LEDC_FREQ            50        // 50 Hz standard RC ESC frequency
+#define ESC_LEDC_RES             16        // 16-bit resolution for microsecond precision
+#define ESC_REVERSE_MAX_US       1000      // Full reverse pulse width (us)
+#define ESC_NEUTRAL_US           1500      // Neutral / stopped pulse width (us)
+#define ESC_FORWARD_MAX_US       2000      // Full forward pulse width (us)
+#define ESC_FORWARD_SAFE_CAP_US  1700      // Safe forward speed limiter for indoor testing (1500-2000 us)
+#define ESC_DEADBAND_NORM        0.04f     // Small deadband around 0 throttle
+
+// Legacy L298N H-Bridge Tuning (when USE_ESC_MOTOR_DRIVER == 0)
+#define MOTOR_LEDC_CH            1
+#define MOTOR_LEDC_FREQ          20000     // 20 kHz ultrasonic PWM
+#define MOTOR_LEDC_RES           8         // 8-bit resolution (0 - 255)
+#define MOTOR_MIN_START_PWM      35        // Minimum PWM duty to overcome gearbox friction
+#define MOTOR_MAX_SAFE_PWM       220       // Maximum duty cycle cap
 
 // ==========================================
 // 4. ULTRASONIC SENSOR FILTER TUNING

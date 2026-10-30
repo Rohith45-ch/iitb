@@ -68,27 +68,42 @@ void setSteeringNormalized(float norm) {
 }
 
 void setMotorThrottle(float norm) {
-  // norm in [-1.0 (reverse/brake), +1.0 (forward)]
   norm = constrain(norm, -1.0f, 1.0f);
 
+#if USE_ESC_MOTOR_DRIVER
+  // Standard RC ESC: 50 Hz PWM with 1000us - 2000us pulse width
+  float us = ESC_NEUTRAL_US;
+  if (abs(norm) < ESC_DEADBAND_NORM) {
+    us = ESC_NEUTRAL_US;
+  } else if (norm > 0.0f) {
+    // Forward mapping from neutral up to safe forward speed limit
+    us = ESC_NEUTRAL_US + (norm * (ESC_FORWARD_SAFE_CAP_US - ESC_NEUTRAL_US));
+  } else {
+    // Reverse / Dynamic Braking
+    us = ESC_NEUTRAL_US + (norm * (ESC_NEUTRAL_US - ESC_REVERSE_MAX_US));
+  }
+  // Convert microseconds to 16-bit LEDC duty at 50 Hz (20,000 us period)
+  uint32_t duty = (uint32_t)((us / 20000.0f) * 65535.0f);
+  ledcWrite(ESC_LEDC_CH, duty);
+
+#else
+  // Legacy L298N Dual-wire H-Bridge
   if (abs(norm) < 0.05f) {
-    // Dynamic Electronic Braking
     digitalWrite(PIN_MOTOR_DIR_A, HIGH);
     digitalWrite(PIN_MOTOR_DIR_B, HIGH);
     ledcWrite(MOTOR_LEDC_CH, 0);
   } else if (norm > 0.0f) {
-    // Forward
     digitalWrite(PIN_MOTOR_DIR_A, HIGH);
     digitalWrite(PIN_MOTOR_DIR_B, LOW);
     uint32_t pwm = (uint32_t)(norm * 255.0f);
     ledcWrite(MOTOR_LEDC_CH, pwm);
   } else {
-    // Reverse / Active Brake
     digitalWrite(PIN_MOTOR_DIR_A, LOW);
     digitalWrite(PIN_MOTOR_DIR_B, HIGH);
     uint32_t pwm = (uint32_t)(abs(norm) * 255.0f);
     ledcWrite(MOTOR_LEDC_CH, pwm);
   }
+#endif
 }
 
 // ==========================================
@@ -141,26 +156,30 @@ void setup() {
   Serial.begin(115200);
   Serial2.begin(115200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
 
-  // Pin Modes
-  pinMode(PIN_MOTOR_DIR_A, OUTPUT);
-  pinMode(PIN_MOTOR_DIR_B, OUTPUT);
-  pinMode(PIN_US_TRIG, OUTPUT);
-  pinMode(PIN_US_ECHO_LEFT, INPUT);
-  pinMode(PIN_US_ECHO_CENTER, INPUT);
-  pinMode(PIN_US_ECHO_RIGHT, INPUT);
-  pinMode(PIN_US_ECHO_SIDE, INPUT);
-  pinMode(PIN_ESTOP_INPUT, INPUT_PULLUP);
-
-  // LEDC PWM Setup
+  // Actuator LEDC Setup
   ledcSetup(SERVO_LEDC_CH, SERVO_LEDC_FREQ, SERVO_LEDC_RES);
   ledcAttachPin(PIN_STEER_SERVO, SERVO_LEDC_CH);
 
-  ledcSetup(MOTOR_LEDC_CH, MOTOR_LEDC_FREQ, MOTOR_LEDC_RES);
-  ledcAttachPin(PIN_MOTOR_PWM, MOTOR_LEDC_CH);
+#if USE_ESC_MOTOR_DRIVER
+  // 1/10 RC ESC Setup: 50 Hz, 16-bit LEDC on Pin 19
+  ledcSetup(ESC_LEDC_CH, ESC_LEDC_FREQ, ESC_LEDC_RES);
+  ledcAttachPin(PIN_MOTOR_PWM, ESC_LEDC_CH);
 
-  // Set initial safe states
+  // Arm ESC by outputting neutral pulse (1500 us)
   setSteeringNormalized(0.0f);
   setMotorThrottle(0.0f);
+  Serial.println(F("[ESP32] Arming ESC (1500us neutral calibration)..."));
+  delay(1500);
+  Serial.println(F("[ESP32] ESC armed and vehicle ready."));
+#else
+  // Legacy L298N Dual-wire H-Bridge Setup
+  pinMode(PIN_MOTOR_DIR_A, OUTPUT);
+  pinMode(PIN_MOTOR_DIR_B, OUTPUT);
+  ledcSetup(MOTOR_LEDC_CH, MOTOR_LEDC_FREQ, MOTOR_LEDC_RES);
+  ledcAttachPin(PIN_MOTOR_PWM, MOTOR_LEDC_CH);
+  setSteeringNormalized(0.0f);
+  setMotorThrottle(0.0f);
+#endif
 
   // Encoders with Hardware Interrupts
   pinMode(PIN_ENCODER_LEFT, INPUT_PULLUP);

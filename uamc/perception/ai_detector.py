@@ -149,7 +149,7 @@ class EdgeAIDetector:
             indices = cv2.dnn.NMSBoxes(boxes, confidences, self.conf_thresh, self.nms_thresh)
 
             for idx in indices:
-                i = idx if isinstance(idx, int) else idx[0]
+                i = int(idx) if (isinstance(idx, (int, np.integer)) or np.isscalar(idx)) else int(idx[0])
                 bx, by, bw, bh = boxes[i]
                 cid = class_ids[i]
                 lbl = self.COCO_CLASSES.get(cid, "object")

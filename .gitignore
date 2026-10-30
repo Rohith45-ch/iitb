@@ -19,6 +19,8 @@ wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
+debug_frames/
+.pytest_cache/
 .coverage
 htmlcov/
 *.log
