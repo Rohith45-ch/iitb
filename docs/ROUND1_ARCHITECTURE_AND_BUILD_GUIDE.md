@@ -76,8 +76,8 @@ The connection between the Raspberry Pi 5 and ESP32 DevKit is handled over a sta
 | **Drive Motor ESC** | Ground (Black/Brown) | **GND** | Common Ground |
 | **HC-SR04 Ultrasonic** | VCC | **VIN (5V)** | Ultrasonic 5V supply |
 | **HC-SR04 Ultrasonic** | GND | **GND** | Ground |
-| **HC-SR04 Ultrasonic** | Trigger | **GPIO 4** | 10 µs Trigger Pulse Output |
-| **HC-SR04 Ultrasonic** | Echo | **GPIO 5** | Direct Return Pulse Input (Safe for testing) |
+| **HC-SR04 Ultrasonic** | Trigger | **GPIO 5** | 10 µs Trigger Pulse (`PIN_US_TRIG`) |
+| **HC-SR04 Ultrasonic** | Echo | **GPIO 35** | Center Front Echo Return (`PIN_US_ECHO_CENTER`) |
 
 ---
 
