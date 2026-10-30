@@ -130,6 +130,7 @@ firmware/
     └── esp32_vehicle_controller.ino # Dual-Core FreeRTOS firmware for ESP32
 
 docs/
+├── ROUND1_ARCHITECTURE_AND_BUILD_GUIDE.md # Complete Round 1 System Architecture & Build Guide
 ├── TECHNICAL_DESIGN_DOCUMENT.md # Official Technical Design Document (TDD)
 ├── ENGINEERING_CALCULATIONS.md  # Detailed kinematic, optical, and braking math
 ├── ESP32_RPI_WIRING_GUIDE.md    # Electrical schematic, pinouts, and 3.3V logic dividers
