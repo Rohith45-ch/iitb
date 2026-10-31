@@ -71,10 +71,19 @@ You can run automated scripts in this repository to test each step.
 
 1. **Camera:** Attach the Raspberry Pi Camera Rev 1.3 to Pi 5 port `CAM1` using the 22-pin to 15-pin adapter ribbon cable.
 2. **ESP32:** Plug the ESP32 into any USB port on the Raspberry Pi 5 using a USB cable.
-3. **Actuators & Single Ultrasonic Sensor:**
-   - **Steering Servo:** ESP32 `Pin 18` (Signal)
-   - **ESC Throttle:** ESP32 `Pin 19` (Signal)
-   - **Ultrasonic Sensor (HC-SR04):** `Pin 5` (Trig), `Pin 35` (Echo via 1k/2k divider)
+3. **Actuators, Motor Driver & Single Ultrasonic Sensor:**
+   - **Steering Servo (SG90/MG90S):** ESP32 `GPIO 18` (Signal) — 50 Hz, 1000–2000 µs
+   - **L298N ENA + ENB:** ESP32 `GPIO 19` (20 kHz PWM speed — jumpers removed from L298N)
+   - **L298N IN1 + IN3:** ESP32 `GPIO 22` (motor direction A)
+   - **L298N IN2 + IN4:** ESP32 `GPIO 23` (motor direction B)
+   - **L298N +12V(VS):** 7V buck converter output (set with meter before connecting)
+   - **L298N +5V logic:** 5V buck converter output (remove 5V jumper from L298N board)
+   - **Left TT motor:** L298N OUT1 / OUT2
+   - **Right TT motor:** L298N OUT3 / OUT4
+   - **HC-SR04 TRIG:** `GPIO 5` | **HC-SR04 ECHO:** `GPIO 35` via 1kΩ/2kΩ voltage divider
+   - **Servo (+):** 5V buck (+) with 470–1000 µF capacitor across the rail
+   - **E-stop NC contact:** In series with 3S LiPo battery (+) before the 10A fuse
+   - **E-stop NO contact:** `GPIO 27` to GND, 10kΩ pull-up from GPIO 27 to 3.3V
 4. In your Pi 5 SSH terminal, run the diagnostic tool:
    ```bash
    python3 scripts/detect_hardware.py

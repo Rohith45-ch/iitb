@@ -35,9 +35,11 @@ class ObstacleDetector:
         self,
         emergency_stop_dist_m: float = 0.25,
         advisory_slow_dist_m: float = 0.45,
+        single_sonar_mode: bool = True,
     ):
         self.emergency_dist = emergency_stop_dist_m
         self.advisory_dist = advisory_slow_dist_m
+        self.single_sonar_mode = single_sonar_mode
         self.prev_distance = None
 
     def process(
@@ -48,10 +50,14 @@ class ObstacleDetector:
         camera_frame: Optional[np.ndarray] = None,
     ) -> ObstacleState:
         # Fuse front ultrasonic readings
-        valid_ranges = [
-            d for d in [ultrasonic_left_m, ultrasonic_center_m, ultrasonic_right_m]
-            if 0.02 < d < 3.0
-        ]
+        # Per Wiring_and_Pin_Map PDF §7: "Only one sonar is fitted. Left, right and flank readings must not stop the car."
+        if self.single_sonar_mode:
+            valid_ranges = [ultrasonic_center_m] if 0.02 < ultrasonic_center_m < 3.0 else []
+        else:
+            valid_ranges = [
+                d for d in [ultrasonic_left_m, ultrasonic_center_m, ultrasonic_right_m]
+                if 0.02 < d < 3.0
+            ]
 
         min_dist = min(valid_ranges) if valid_ranges else 10.0
 

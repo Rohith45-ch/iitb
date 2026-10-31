@@ -17,46 +17,45 @@ AML-Rover-V1 is an autonomous scaled robotic vehicle developed for the Urban Aut
 ```mermaid
 graph TD
     subgraph Power System
-        BATT[7.4V 2S LiPo Battery]
-        FUSE[15A Fast-Blow Fuse & Master Kill Switch]
-        BUCK[5V/5A Switching Regulator]
+        BATT[3S LiPo 2200mAh (11.1V)]
+        FUSE[10A Fuse & Master E-Stop Switch]
+        BUCK7[7V Buck Regulator - Motors]
+        BUCK5[5V Buck Regulator - Logic & Servo]
     end
 
     subgraph Compute Stack
         SBC[High-Level SBC: Raspberry Pi 5<br/>Linux OS + Python Perception & Planning Stack]
-        MCU[Low-Level MCU: ESP32 / Arduino Nano<br/>Real-Time PID & Actuator PWM Driver]
+        MCU[Low-Level MCU: ESP32 DevKit V1<br/>Dual-Core FreeRTOS Actuator & Safety Controller]
     end
 
     subgraph Sensor Suite
-        CAM[Wide-Angle USB / CSI Camera - 120° FOV, 60 FPS]
-        US_FRONT[Ultrasonic Sensor Array - Front HC-SR04 / ToF]
-        US_SIDE[Ultrasonic Sensor - Lateral Parking Bay Scanner]
-        IMU[6-DOF IMU: MPU-6050 / BNO055]
-        ENC[Optical Wheel Encoders - Dual Channel Quadrature]
+        CAM[Pi Camera Rev 1.3 - 15-to-22 pin CSI]
+        US_FRONT[HC-SR04 Ultrasonic Sensor - Center Front]
+        ESTOP_SW[E-Stop NO Contact to GPIO 27]
     end
 
     subgraph Actuation Stack
-        STEER[High-Torque Metal Gear Steering Servo]
-        ESC[Electronic Speed Controller / H-Bridge Motor Driver]
-        MOTOR[Brushed / Brushless DC Drive Motor]
+        STEER[Micro Steering Servo SG90/MG90S]
+        L298N[L298N Dual H-Bridge Motor Driver]
+        MOTOR[2x TT Gear Motors 3-9V]
     end
 
     BATT --> FUSE
-    FUSE --> BUCK
-    FUSE --> ESC
-    BUCK --> SBC
-    BUCK --> MCU
+    FUSE --> BUCK7
+    FUSE --> BUCK5
+    BUCK7 --> L298N
+    BUCK5 --> STEER
+    BUCK5 --> US_FRONT
+    BUCK5 --> L298N
 
-    CAM -->|USB / CSI| SBC
-    IMU -->|I2C| MCU
-    ENC -->|Interrupts| MCU
-    US_FRONT -->|GPIO| MCU
-    US_SIDE -->|GPIO| MCU
+    CAM -->|CSI Ribbon| SBC
+    US_FRONT -->|GPIO 5 Trig / GPIO 35 Echo| MCU
+    ESTOP_SW -->|GPIO 27 Active-LOW| MCU
 
-    SBC <-->|High-Speed UART / Serial 115200 bps| MCU
-    MCU -->|PWM 50Hz| STEER
-    MCU -->|PWM / Direction| ESC
-    ESC --> MOTOR
+    SBC <-->|USB Serial 115200 bps /dev/ttyUSB0| MCU
+    MCU -->|PWM 50Hz GPIO 18| STEER
+    MCU -->|PWM 20kHz GPIO 19 + DIR GPIO 22/23| L298N
+    L298N --> MOTOR
 ```
 
 - **Compute Unit**: Raspberry Pi 5 (8GB) running Ubuntu Linux / Raspberry Pi OS. High-level vision processing and decision planning run at 30+ FPS.
@@ -120,11 +119,11 @@ graph TD
 | Parameter | Value |
 | :--- | :--- |
 | **Dimensions (L × W × H)** | 420 mm × 195 mm × 160 mm |
-| **Wheelbase ($L$)** | 260 mm |
+| **Wheelbase ($L$)** | 170 mm |
 | **Track Width ($W$)** | 165 mm |
 | **Gross Weight** | 1.85 kg |
 | **Max Steering Angle ($\delta_{max}$)** | $\pm 28^\circ$ |
-| **Min Turning Radius ($R_{min}$)** | 488 mm (48.8 cm) |
+| **Min Turning Radius ($R_{min}$)** | 320 mm (32.0 cm) |
 | **Cruising Speed ($v$)** | 0.40 m/s – 0.65 m/s |
 | **Stopping Distance from Max Speed** | < 12 cm |
 | **Compute Power Draw** | 5V @ 2.2A (~11W peak) |

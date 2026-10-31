@@ -31,7 +31,7 @@ This step-by-step guide walks you from unboxing your **Raspberry Pi 5** and **ES
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │ PHASE 4: Mount on Chassis & Run Autonomous Vehicle                     │
-│   • Power up motor battery (7.4V (2S LiPo)) & Pi Power Bank (5V 3A)        │
+│   • Power up motor battery (3S LiPo (11.1V, 2200 mAh)) & Pi Power Bank (5V 3A)        │
 │   • Run `python3 scripts/run_autonomous.py --use-yolo --use-pilotnet`  │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │

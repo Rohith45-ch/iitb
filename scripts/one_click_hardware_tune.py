@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 One-Click Turnkey Hardware Bring-up & Interactive Tuning Suite.
-Executed the moment physical hardware (Raspberry Pi 5 + ESP32 + Camera + Servo + ESC)
+Executed the moment physical hardware (Raspberry Pi 5 + ESP32 + Camera + Servo + L298N)
 is plugged in. Walks through detection, communication verification, servo center trim,
-ESC arming & speed test, camera IPM calibration, and AI model benchmarking.
+L298N motor speed test, camera IPM calibration, and AI model benchmarking.
 """
 
 import os
@@ -81,7 +81,7 @@ def step_2_test_serial_bridge(port: str):
 
 
 def step_3_servo_trim_guide(bridge: SerialBridge):
-    print_banner("STEP 3: STEERING SERVO & ESC CALIBRATION")
+    print_banner("STEP 3: STEERING SERVO & L298N MOTOR CALIBRATION")
     print("Testing Steering Commands...")
     print("  -> Sending Center (0.0)")
     bridge.send_actuator_command(steering_normalized=0.0, throttle_normalized=0.0)
@@ -99,18 +99,18 @@ def step_3_servo_trim_guide(bridge: SerialBridge):
     bridge.send_actuator_command(steering_normalized=0.0, throttle_normalized=0.0)
     print("✅ Steering servo responded cleanly.")
 
-    print("\nTesting ESC Throttle Commands...")
-    print("  -> ESC Idle / Neutral (0.0)")
+    print("\nTesting L298N Motor Throttle Commands...")
+    print("  -> Motor Idle / Stop (0.0)")
     bridge.send_actuator_command(steering_normalized=0.0, throttle_normalized=0.0)
     time.sleep(0.5)
 
-    print("  -> Gentle Forward Test (+0.10) for 0.5s")
-    bridge.send_actuator_command(steering_normalized=0.0, throttle_normalized=0.10)
+    print("  -> Gentle Forward Test (+0.15) for 0.5s")
+    bridge.send_actuator_command(steering_normalized=0.0, throttle_normalized=0.15)
     time.sleep(0.5)
 
-    print("  -> Dynamic Brake / Neutral (0.0)")
+    print("  -> Motor Stop (0.0)")
     bridge.send_actuator_command(steering_normalized=0.0, throttle_normalized=0.0)
-    print("✅ ESC throttle test passed.")
+    print("✅ L298N motor throttle test passed.")
 
 
 def step_4_ai_model_bench():

@@ -7,7 +7,7 @@ from uamc.control.longitudinal_controller import LongitudinalPIDController
 
 class TestControllers(unittest.TestCase):
     def setUp(self):
-        self.lateral_ctrl = PurePursuitController(wheelbase_m=0.260, max_steering_angle_deg=28.0)
+        self.lateral_ctrl = PurePursuitController(wheelbase_m=0.170, max_steering_angle_deg=28.0)
         self.longitudinal_ctrl = LongitudinalPIDController(kp=1.8, ki=0.45, kd=0.08)
 
     def test_pure_pursuit_centering(self):

@@ -20,9 +20,9 @@ This architecture document provides the exact mechanical dimensions, mounting pa
 | **Low-Level Controller** | ESP32 DevKit V1 (30-pin) | Layer 1 (on Breadboard) | 50 Hz PWM actuator control, ultrasonic filtering, watchdog |
 | **Ground Line Sensor** | SmartElex RLS-06 (6-IR Array) | Layer 0 (Under-Nose) | 5–10 mm ground clearance for millisecond lane recovery |
 | **Steering Actuator** | Micro Servo 9g (SG90 / MG90S) | Layer 0 (Front Center) | Front wheel Ackermann steering linkage via 50 Hz PWM |
-| **Propulsion & ESC** | RC Brushed/Brushless Motor + ESC | Layer 0 / Layer 1 | 50 Hz ESC throttle control (1000–2000 µs pulse) |
+| **Propulsion & Motor Driver** | TT Gear Motor (3–9V) + L298N H-Bridge | Layer 0 / Layer 1 | 20 kHz PWM via GPIO19 → L298N ENA/ENB |
 | **Brain Power Supply** | 2500–3500 mAh LiPo Power Bank (5V/3A) | Layer 1 (Mid Deck) | Dedicated isolated power for Raspberry Pi 5 |
-| **Motor Power Supply** | 7.4V 2S LiPo / 7.2V NiMH Battery | Layer 0 (Chassis floor)| High-discharge power for ESC, motor, and servo BEC |
+| **Motor Power Supply** | 3S LiPo 2200 mAh (11.1V nominal) | Layer 0 (Chassis floor)| High-current source → 7V buck (motors) + 5V buck (servo, sonar, logic) |
 | **Proximity Sonar**      | 1× HC-SR04 Ultrasonic Module         | Layer 2 Front Bumper | Center (0°, GPIO 35) for emergency stop |
 | **Wiring & Power Rails** | 400 Tie-Point Solderless Breadboard | Layer 1 (Mid Deck) | ESP32 carrier, voltage dividers, sensor distribution |
 
@@ -48,8 +48,8 @@ Use the exact millimeter dimensions below for 3D modeling in Fusion 360, SolidWo
 | **2500–3500 mAh LiPo Power Bank**| ~96.0 × 65.0 × 16.0 mm | Flat enclosure (no screw holes) | 2× 15 mm Velcro straps | Bay: **100.0 × 68.0 mm** with strap slots (18 × 3 mm). |
 | **Raspberry Pi 5** | 85.0 × 56.0 × 17.0 mm (24 mm w/ Cooler) | 4 holes: **58.0 × 49.0 mm** rectangle | M2.5 × 10 mm standoffs | Hole diameter: **Ø 2.8 mm**. Leave SD slot accessible. |
 | **HC-SR04 Ultrasonic Module** | 45.0 × 20.0 × 15.0 mm (cylinders: Ø 16.0 mm)| Transducer center spacing: **26.0 mm**| Front friction fit / clip | Cut 2 barrel holes: **Ø 16.4 mm** spaced 26.0 mm apart. |
-| **RC ESC** | ~42.0 × 34.0 × 21.0 mm | Flat base with heatsink top | Zip-ties or 3M VHB tape| Cut honeycomb ventilation under heatsink area. |
-| **7.4V Motor LiPo Battery** | ~135.0 × 45.0 × 24.0 mm | Battery cradle | 20 mm Velcro cinch strap| Centerline bottom deck tray: **140.0 × 48.0 mm**. |
+| **L298N Motor Driver** | ~44.0 × 44.0 × 14.0 mm | Flat base with heatsink top | Zip-ties or 3M VHB tape| No heatsink needed; keep clear of motor output terminals. |
+| **3S LiPo 2200 mAh** | ~107.0 × 35.0 × 22.0 mm | Battery cradle | 20 mm Velcro cinch strap| Centerline bottom deck tray: **140.0 × 48.0 mm**. |
 
 ---
 
@@ -76,7 +76,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
   │ LAYER 1: POWER & CONTROLLER DECK (Middle Plate)                                 │
   │ • 400-Point Breadboard with ESP32 DevKit V1 seated                              │
   │ • 2500–3500 mAh LiPo Power Bank (dedicated Raspberry Pi 5 power)                │
-  │ • RC ESC Tray with bottom airflow grill                                         │
+  │ • L298N Motor Driver Tray with terminal access                                         │
   └────────────────────────────────────────┬────────────────────────────────────────┘
                    ▲                       │ (4x M3 × 30mm Hex Standoffs)
                    │                       ▼
@@ -84,7 +84,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
   │ LAYER 0: BASE CHASSIS DECK (Ground Plate)                                       │
   │ • Front Lip Underside: SmartElex RLS-06 6-IR Line Sensor (5-10 mm above track)  │
   │ • Front Topside: Micro Servo 9g pocket (23.5 × 12.5 mm) & Ackermann tie-rods     │
-  │ • Center Bay: 7.4V 2S LiPo Drive Battery Tray (lowest Center of Gravity)       │
+  │ • Center Bay: 3S LiPo 2200 mAh Battery Tray — lowest center of gravity       │
   │ • Rear Axle: Drive Motor, Differential, and Gearbox                             │
   └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -114,15 +114,15 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
 1. **400-Point Breadboard Tray:**
    * Recessed tray: **83.5 mm × 56.5 mm × 2.5 mm**.
    * Mount the breadboard with its adhesive back into this tray.
-   * Seat the **ESP32 DevKit V1** straddling the breadboard's central trough. This leaves 2 terminal tie-points accessible on either side for jumper wires to sensors, servo, and ESC.
+   * Seat the **ESP32 DevKit V1** straddling the breadboard's central trough. This leaves 2 terminal tie-points accessible on either side for jumper wires to sensors, servo, and L298N.
 2. **Power Bank Tray (Pi 5 Power):**
    * Pocket: **100.0 mm × 65.0 mm × 3.0 mm** with two 18 × 3 mm strap slots.
    * Place toward the rear half of Layer 1 to balance the vehicle's forward weight.
    * Position the USB output port facing forward or sideways for a clean, short cable route to the Pi 5.
-3. **ESC Bay:**
-   * Raised 42 × 34 mm pad with a honeycomb cutout grid beneath it to let cool air reach the ESC heatsink.
+3. **L298N Motor Driver Bay:**
+   * Tray: **46.0 mm × 46.0 mm** with corner M3 mounting holes or zip-tie anchors.
 4. **Wiring Feedthroughs:**
-   * Four 15 × 8 mm oval slots to route servo, motor, battery, and IR sensor cables between Layer 0 and Layer 1.
+   * Four 15 × 8 mm oval slots to route servo, motor, battery, and sensor cables between Layer 0 and Layer 1.
 
 ---
 
@@ -172,17 +172,19 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
      [ ESP32 DevKit V1 ]                          [ RPi Cam Rev 1.3 ]
   (on 400-pt Breadboard)                         (on Layer 3 Mast)
    ├── Pin 18 (PWM 50Hz) ──────► Micro Servo 9g (Signal)
-   ├── Pin 19 (PWM 50Hz) ──────► ESC Throttle (Signal)
+   ├── Pin 19 (PWM 20kHz) ─────► L298N ENA + ENB (Speed)
+   ├── Pin 22 (Digital Out) ───► L298N IN1 + IN3 (Dir A)
+   ├── Pin 23 (Digital Out) ───► L298N IN2 + IN4 (Dir B)
    ├── Pin 5  (Trigger)  ──────► HC-SR04 Center Sonar Trig
    ├── Pin 35 (Echo Center)◄──── HC-SR04 Center Sonar Echo (via 1k/2k Divider)
-   └── Pin 27 (Input Pullup)◄─── Hardware E-Stop Kill Switch
+   └── Pin 27 (Input Pullup)◄─── Hardware E-Stop Kill Switch (Active-LOW)
        *(Note: Camera does primary lane tracking. SmartElex RLS-06 is an optional ground add-on)*
 ```
 
 > [!TIP]
 > **Power Isolation Best Practice:**
 > * The **Raspberry Pi 5** is powered exclusively by the **2500–3500 mAh LiPo Power Bank**.
-> * The **Drive Motor, ESC, and Micro Servo 9g** are powered by the **7.4V 2S LiPo Battery** (servo power comes from the ESC's 5V/6V BEC).
+> * The **TT Gear Motors** and **L298N** are powered by the **3S LiPo 2200 mAh** via the **7V buck converter**. The **Micro Servo 9g** is powered from the **5V buck converter** (with 470–1000 µF cap).
 > * The **ESP32** is powered directly from the Raspberry Pi 5 via the USB data cable.
 > * Connect all system grounds (**GND**) together on the 400-point breadboard negative rail.
 
@@ -192,7 +194,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
 
 | Slicer Parameter | Value | Justification |
 | :--- | :--- | :--- |
-| **Recommended Filament** | **PETG** (or **PLA+**) | Heat resistance near ESC/motor (>70°C vs PLA's 55°C deformation), impact toughness. |
+| **Recommended Filament** | **PETG** (or **PLA+**) | Heat resistance near motors (>70°C vs PLA's 55°C deformation), impact toughness. |
 | **Layer Height** | **0.20 mm** | Accurate screw hole threads and clean fit for sensor pockets. |
 | **Perimeter / Walls** | **4 to 5 walls (1.6 – 2.0 mm)** | **Critical:** Screws thread into printed walls. Thin walls will strip under vibration. |
 | **Top / Bottom Solid Layers**| **4 Top / 4 Bottom** | Ensures decks remain flat and rigid under battery weight. |
@@ -208,13 +210,13 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
 1. **Step 1 — Base Chassis Assembly (Layer 0):**
    * Bolt the SmartElex RLS-06 array under the front nose using M3 screws and spacers (verify 6–8 mm ground clearance).
    * Install the 9g Micro Servo into the 23.5 × 12.5 mm pocket using M2 screws and connect the steering linkage to the front steering knuckles.
-   * Secure the 7.4V motor battery in the centerline cradle with a Velcro strap.
+   * Secure the 3S LiPo 2200 mAh battery in the centerline cradle with a Velcro strap.
    * Screw 4× M3 × 30 mm hex standoffs into the corner mounting points.
 
 2. **Step 2 — Controller & Power Deck (Layer 1):**
    * Mount the Layer 1 plate onto the M3 standoffs.
    * Adhere the 400-point breadboard into its recessed tray and insert the ESP32 DevKit V1 across the central channel.
-   * Fasten the ESC in its bay using zip-ties or 3M foam tape.
+   * Fasten the L298N motor driver in its bay using zip-ties or M3 standoffs.
    * Strap the 2500–3500 mAh LiPo power bank into its bay.
    * Screw 4× M3 × 35 mm hex standoffs into the deck.
 
@@ -227,7 +229,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
 
 4. **Step 4 — Final Interconnect & Verification:**
    * Connect the ESP32 to the Raspberry Pi 5 using the USB cable.
-   * Plug in the breadboard jumpers for servo (Pin 18), ESC (Pin 19), and sensors.
+   * Plug in the breadboard jumpers for servo (Pin 18), L298N (Pins 19, 22, 23), HC-SR04 (Pins 5, 35), and E-stop (Pin 27).
    * Power up the Pi 5 from the power bank and execute pre-flight diagnostics:
      ```bash
      python3 scripts/detect_hardware.py

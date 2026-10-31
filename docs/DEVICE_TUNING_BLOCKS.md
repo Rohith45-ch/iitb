@@ -34,7 +34,7 @@ light_debounce_frames = 4            # Number of frames of consensus before conf
 ### 3. Lateral Steering & Longitudinal Speed Control
 ```python
 # In config/rpi_tuning.py -> VehicleControlConfig
-wheelbase_m = 0.260           # Exact distance between front and rear axles (m)
+wheelbase_m = 0.170           # This car's wheelbase: 170 mm (per Wiring_and_Pin_Map PDF §7)
 lookahead_min_m = 0.28        # Lookahead distance at low speed (m)
 lookahead_gain = 0.40         # Lookahead speed coefficient (l_d = k * v + l_d0)
 kp_velocity = 1.80            # Motor speed PID Proportional gain
@@ -68,16 +68,17 @@ Modify these settings when trimming the steering servo, adjusting motor starting
 * **Car Pulls to the Left when Driving Straight**: Increase `SERVO_MID_US` (e.g. `1530`).
 * **Car Pulls to the Right when Driving Straight**: Decrease `SERVO_MID_US` (e.g. `1470`).
 
-### 2. ESC Throttle Calibration (1/10 RC Drivetrain)
+### 2. L298N Motor Speed Calibration (H-Bridge Drivetrain)
 ```cpp
 // In firmware/esp32_firmware/esp32_config.h
-#define USE_ESC_MOTOR_DRIVER     1         // 1 = RC ESC (Default), 0 = Dual H-Bridge
-#define ESC_NEUTRAL_US           1500      // Neutral / stopped pulse width (us)
-#define ESC_FORWARD_SAFE_CAP_US  1700      // Safe forward speed limiter for indoor testing (1500-2000 us)
-#define ESC_DEADBAND_NORM        0.04f     // Throttle deadband around zero
+#define USE_ESC_MOTOR_DRIVER     0         // 0 = L298N H-Bridge (our hardware per PDF)
+#define MOTOR_MIN_START_PWM      35        // Min PWM (0-255) to overcome TT gearbox static friction
+#define MOTOR_MAX_SAFE_PWM       220       // Maximum PWM duty cycle cap
+#define MOTOR_LEDC_FREQ          20000     // 20 kHz PWM (inaudible, good for TT motors)
 ```
-* **Car Moves Too Fast Indoors**: Decrease `ESC_FORWARD_SAFE_CAP_US` to `1620` (gentler acceleration).
-* **Motor Doesn't Move at Low Throttle**: Increase `ESC_DEADBAND_NORM` slightly or calibrate the ESC throttle range.
+* **Motors hum but don't turn**: Increase `MOTOR_MIN_START_PWM` from `35` to `50`.
+* **Motors very hot after 1 minute**: The 7V buck is set too high — re-measure and adjust it with a multimeter.
+* **One motor runs backwards**: Swap that motor's two wires at L298N OUT terminals (do not change GPIOs).
 
 ### 3. Ultrasonic Outlier & Multipath Filter
 ```cpp
@@ -102,8 +103,9 @@ Modify these settings when trimming the steering servo, adjusting motor starting
 
 | Symptom | Device | File to Open | Parameter to Change |
 | :--- | :--- | :--- | :--- |
-| **Car drifts left or right when given 0 steering** | ESP32 | [`esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h) | Adjust `SERVO_MID_US` by $\pm 20$–$50\mu s$ |
-| **Car moves too fast during testing** | ESP32 | [`esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h) | Lower `ESC_FORWARD_SAFE_CAP_US` to `1620` |
+| **Car drifts left or right when given 0 steering** | ESP32 | [`esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h) | Adjust `SERVO_MID_US` by ±20–50 µs |
+| **Motor doesn't move / hums but stalls** | ESP32 | [`esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h) | Increase `MOTOR_MIN_START_PWM` from `35` to `50` |
+| **Motors overheat quickly** | Hardware | 7V Buck Converter | Re-measure and lower 7V buck output — 3S LiPo must NOT reach L298N directly |
 | **Steering wiggles rapidly on straight track** | Raspberry Pi | [`rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py) | Increase `lookahead_min_m` to `0.32` |
 | **Vehicle cuts corners too tight** | Raspberry Pi | [`rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py) | Decrease `lookahead_min_m` to `0.24` |
 | **Traffic light red/green not recognized** | Raspberry Pi | [`rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py) | Adjust `light_red1_hsv` or `light_green_hsv` |

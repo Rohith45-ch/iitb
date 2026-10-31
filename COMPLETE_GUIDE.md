@@ -1,265 +1,307 @@
 # 🚗 UAMC Autonomous Vehicle — COMPLETE MASTER MANUAL
-### Techfest IIT Bombay | Raspberry Pi 5 + ESP32 + ESC Architecture
+### Techfest IIT Bombay | Raspberry Pi 5 + ESP32 + L298N + TT Motors
 **Repository:** [https://github.com/Rohith45-ch/iitb.git](https://github.com/Rohith45-ch/iitb.git)  
-**Hardware Revision:** Final Confirmed Hardware Inventory (Raspberry Pi 5 + ESP32 DevKit V1 + Micro Servo 9g + 2500–3500 mAh LiPo + 1x Front Ultrasonic + ESC)  
-**Last Updated:** October 31, 2026  
-
----
+**Hardware Source:** `Wiring_and_Pin_Map.pdf` (team document — authoritative hardware reference)  
+**Firmware Source:** `firmware/esp32_firmware/esp32_config.h` + `esp32_vehicle_controller.ino`  
+**Last Updated:** October 31, 2026
 
 > [!IMPORTANT]
-> This is your **single source of truth** for the entire project. It contains everything: verified physical inventory, master pin-to-pin wiring diagrams, CAD 3D-printing specifications, firmware flashing steps, Raspberry Pi 5 setup, and calibration playbooks.
+> This is your **single source of truth**. Every pin, every wire, every component, every firmware value here is taken **directly from `Wiring_and_Pin_Map.pdf`** and cross-checked against the firmware. Do not use values from any older document.
 
 ---
 
-## 📦 PART 1 — VERIFIED HARDWARE INVENTORY
+## 📦 PART 1 — VERIFIED HARDWARE INVENTORY (per PDF §1)
 
-### ✅ Confirmed Components In Hand
+| # | Component | Exact Spec / Model | Role | Qty |
+|---|-----------|-------------------|------|-----|
+| 1 | **ESP32 DevKit V1 (30-pin)** | Espressif, standard 30-pin layout | Motor, servo, sonar, E-stop control | 1 |
+| 2 | **Raspberry Pi 5** | 8GB RAM, Pi OS 64-bit (Bookworm) | Vision and planner; live at `rohith@10.94.129.58` | 1 |
+| 3 | **Pi Camera Rev 1.3** | OV5647 5MP; **15-to-22 pin CSI cable** to Pi 5 CAM port | Road lane, traffic light, sign, pedestrian detection | 1 |
+| 4 | **L298N Motor Driver** | Dual H-bridge module, one board | Drives **both** TT gear motors | 1 |
+| 5 | **TT Gear Motor** | 3–9 V rated (use 3–9V type; plain 6V TT is rated lower than our 7V supply) | Left and right wheel drive | 2 |
+| 6 | **3S LiPo Battery** | **2200 mAh, 11.1 V nominal / 12.6 V full** | Main drive power source | 1 |
+| 7 | **Buck Converter — 7 V** | 3 A+ output capacity | Steps 3S LiPo down to 7 V for motor supply | 1 |
+| 8 | **Buck Converter — 5 V** | 3 A+ output capacity | Powers servo, HC-SR04, and L298N logic | 1 |
+| 9 | **Steering Servo SG90 / MG90S** | 9 g micro servo, 5 V | Front-wheel Ackermann steering | 1 |
+| 10 | **HC-SR04 Ultrasonic Sensor** | Front centre only | Obstacle detection and emergency braking | 1 |
+| 11 | **E-stop Button** | 22 mm latching, **2 contacts** (1× NC + 1× NO) | Cuts main battery line (NC); signals ESP32 (NO) | 1 |
+| 12 | **10 A Inline Fuse + Holder** | — | Battery positive lead protection | 1 |
+| 13 | **Resistors** | 1 kΩ, 2 kΩ, 10 kΩ | Sonar echo voltage divider (1k+2k); E-stop pull-up (10k) | 1 each |
+| 14 | **Capacitor** | 470–1000 µF, 16 V | Across servo 5 V supply rail | 1 |
+| 15 | **USB-A to Micro-USB Cable** | Data cable (NOT charge-only) | Pi 5 USB-A ↔ ESP32 Micro-USB — only Pi↔ESP32 link | 1 |
+| 16 | **Power Bank** | 5 V / 3 A output | Raspberry Pi 5 dedicated power via USB-C | 1 |
+| 17 | **400-Point Breadboard** | Solderless | ESP32 carrier + common ground rail | 1 |
 
-| # | Component | Exact Model / Specification | Role in System | Software & Wiring Status |
-|---|-----------|-----------------------------|----------------|--------------------------|
-| 1 | **High-Level SBC** | **Raspberry Pi 5 (8GB)** | Vision perception, YOLO/PilotNet AI, FSM Behavior Planner | **100% READY** (OS installed, repo cloned to `~/iitb`, live at `rohith@10.94.129.58`) |
-| 2 | **Microcontroller** | **ESP32 DevKit V1 (30-pin)** | Real-time dual-core FreeRTOS controller, 50 Hz PWM actuator generator, 150ms watchdog | **100% READY** (Firmware in `firmware/esp32_firmware/`) |
-| 3 | **Camera Module** | **Raspberry Pi Camera Rev 1.3** (OV5647 5MP) | Road lane tracking, traffic light detection, traffic signs | Supported via standard 15-to-22 pin RPi 5 CSI adapter cable |
-| 4 | **Steering Servo** | **Micro Servo 9g (SG90 / MG90S)** | Front-wheel Ackermann steering angle control | 50 Hz PWM on ESP32 **GPIO 18** (`PIN_STEER_SERVO`) |
-| 5 | **Drivetrain & Motor**| **RC Motor + Electronic Speed Controller (ESC)** | Vehicle propulsion & proportional braking | 50 Hz PWM on ESP32 **GPIO 19** (`PIN_MOTOR_PWM`) |
-| 6 | **Proximity Sensor** | **1× HC-SR04 Ultrasonic Sensor** | Center front bumper obstacle detection & emergency braking | Trig: ESP32 **GPIO 5** \| Echo: ESP32 **GPIO 35** (via 1kΩ/2kΩ divider) |
-| 7 | **Pi 5 Power Supply**| **2500–3500 mAh LiPo Power Bank (5V $\ge$ 3A)** | Dedicated isolated power for Raspberry Pi 5 | Plugs into Raspberry Pi 5 USB-C port |
-| 8 | **Motor Power Supply**| **7.4V 2S LiPo / 7.2V NiMH Battery Pack** | High-current power for ESC, motor, and servo BEC | Plugs into ESC battery input (XT60 / Deans / Tamiya) |
-| 9 | **Chassis Platform** | **1/10-Scale On-Road RC Chassis** | Wheelbase $\approx 260\text{ mm}$, front Ackermann steering tie rods | Tuned in `config/rpi_tuning.py` (`wheelbase_m = 0.260`) |
-| 10| **Interconnect Data** | **USB-A to Micro-USB Cable** | High-speed 115200 baud serial bridge between Pi 5 and ESP32 | Pi USB-A port $\longleftrightarrow$ ESP32 Micro-USB port |
-| 11| **Breadboard** | **400 Tie-Point Solderless Breadboard** | ESP32 carrier, common ground rail, sensor distribution | Layer 1 Mid-Deck |
-| 12| **Ground Line Sensor**| **SmartElex RLS-06 (6-IR Array)** | Under-nose emergency line recovery | Optional add-on; camera handles primary lane tracking |
-
-### 🟡 Optional / Deferred for Round 1
-* **MPU6050 IMU:** Optional for Round 1. Firmware TinyML safety classifier safely falls back to nominal 1G acceleration without errors.
-* **Optical Wheel Encoders:** Optional for Round 1. Throttle is commanded via calibrated open-loop cruising speeds.
-
----
-
-## 🔌 PART 2 — MASTER PIN-TO-PIN WIRING MAP
-
-Every wire in the autonomous vehicle connects according to this authoritative map:
-
-```
-                         ┌──────────────────────────────────┐
-                         │   2500–3500 mAh LiPo Powerbank   │
-                         └────────────────┬─────────────────┘
-                                          │ 5V / 3A (USB-C)
-                                          ▼
-                                 [ Raspberry Pi 5 ]
-                                          │
-                             USB Cable    │   15-to-22 Pin Ribbon
-                           (Serial Data)  │
-                                          ▼
-                   ┌──────────────────────┴──────────────────────┐
-                   │                                             │
-                   ▼                                             ▼
-         [ ESP32 DevKit V1 ]                          [ RPi Cam Rev 1.3 ]
-      (on 400-pt Breadboard)                         (on Layer 3 Mast)
-       ├── Pin 18 (PWM 50Hz) ──────► Micro Servo 9g (Signal)
-       ├── Pin 19 (PWM 50Hz) ──────► ESC Throttle (Signal)
-       ├── Pin 5  (Trigger)  ──────► HC-SR04 Center Sonar Trig
-       ├── Pin 35 (Echo Center)◄──── HC-SR04 Center Sonar Echo (via 1k/2k Divider)
-       └── Pin 27 (Input Pullup)◄─── Hardware E-Stop Kill Switch
-```
-
-### 📋 Detailed Pin Allocation Table
-
-| Hardware Component | Device Wire / Terminal | ESP32 DevKit V1 Pin | Parameter in `esp32_config.h` | Signal Description & Level |
-| :--- | :--- | :--- | :--- | :--- |
-| **Micro Servo 9g** | Signal (Orange or Yellow) | **GPIO 18** | `PIN_STEER_SERVO` | 50 Hz PWM (`LEDC Channel 0`, 1000–2000 µs) |
-| **Micro Servo 9g** | Power (Red) & Ground (Brown) | ESC BEC 5V & Common GND | — | 5V / GND (powered from ESC BEC, NOT ESP32!) |
-| **Drive Motor ESC** | Throttle Signal (White or Yellow)| **GPIO 19** | `PIN_MOTOR_PWM` | 50 Hz PWM (`LEDC Channel 1`, 1000–2000 µs) |
-| **Drive Motor ESC** | Reference Ground (Black) | **ESP32 GND** | — | Must connect to common breadboard GND |
-| **Drive Motor ESC** | Battery Input (Thick Red/Black)| **7.4V 2S LiPo Battery** | — | High-current main motor supply |
-| **HC-SR04 Sonar** | VCC | **5V Power Rail** | — | 5V Power |
-| **HC-SR04 Sonar** | GND | **Common Ground** | — | Ground |
-| **HC-SR04 Sonar** | Trigger | **GPIO 5** | `PIN_US_TRIG` | 10 µs digital pulse from ESP32 |
-| **HC-SR04 Sonar** | Echo | **GPIO 35** (via divider) | `PIN_US_ECHO_CENTER` | 3.3V safe divided logic input |
-| **Hardware E-Stop** | Switch Terminals | **GPIO 27** & **GND** | `PIN_ESTOP_INPUT` | Active-LOW latching button |
-| **Pi 5 Data Bridge** | USB Data Cable | **Micro-USB Port** | Serial UART | 115200 Baud (`/dev/ttyUSB0`) |
-
-### ⚡ Ultrasonic 3.3V Voltage Divider Circuit
-Because HC-SR04 echo pins output 5V and ESP32 GPIOs are strictly 3.3V rated, wire this simple 2-resistor voltage divider on the breadboard:
-$$\text{Echo (5V)} \longrightarrow [1\text{ k}\Omega] \longrightarrow \text{ESP32 GPIO 35} \longrightarrow [2\text{ k}\Omega] \longrightarrow \text{GND}$$
-$$V_{out} = 5\text{V} \times \frac{2\text{ k}\Omega}{1\text{ k}\Omega + 2\text{ k}\Omega} = 3.33\text{V} \quad \text{(100% Safe for ESP32)}$$
+### 🟡 Optional / Not Used in Round 1
+- **SmartElex RLS-06 (6-IR Array):** No firmware code for it yet. Do not wire for Round 1.
+- **Wheel Encoders:** Pins 25/26 defined but leave **unconnected**. Speed is open-loop.
+- **MPU6050 IMU:** Not required for Round 1.
 
 ---
 
-## 🖨️ PART 3 — 3D PRINTING & MECHANICAL CHASSIS SPECIFICATIONS
-
-If you are 3D-printing decks, brackets, or a custom chassis plate, use these exact dimensions:
+## ⚡ PART 2 — POWER TREE (per PDF §2)
 
 ```
-                           ┌───────────────────────────────┐
-                           │ LAYER 3: PERCEPTION MAST      │
-                           │ Raspberry Pi Camera Rev 1.3   │
-                           │ (Elevated @ 130mm, 18° tilt)  │
-                           └───────────────┬───────────────┘
-                                           │
-  ┌────────────────────────────────────────┴────────────────────────────────────────┐
-  │ LAYER 2: COMPUTE & SENSOR DECK (Top Plate)                                      │
-  │ • Front Bumper: 1x HC-SR04 Center Sonar Pod (0°, GPIO 35 - Round 1 Baseline)   │
-  │ • Raspberry Pi 5 (M2.5 standoffs, active cooler intake & MicroSD egress)        │
-  └────────────────────────────────────────┬────────────────────────────────────────┘
-                   ▲                       │ (4x M3 × 35mm Hex Standoffs)
-                   │                       ▼
-  ┌─────────────────────────────────────────────────────────────────────────────────┐
-  │ LAYER 1: POWER & CONTROLLER DECK (Middle Plate)                                 │
-  │ • 400-Point Breadboard with ESP32 DevKit V1 seated                              │
-  │ • 2500–3500 mAh LiPo Power Bank (dedicated Raspberry Pi 5 power)                │
-  │ • RC ESC Tray with bottom airflow grill                                         │
-  └────────────────────────────────────────┬────────────────────────────────────────┘
-                   ▲                       │ (4x M3 × 30mm Hex Standoffs)
-                   │                       ▼
-  ┌─────────────────────────────────────────────────────────────────────────────────┐
-  │ LAYER 0: BASE CHASSIS DECK (Ground Plate)                                       │
-  │ • Front Lip Underside: SmartElex RLS-06 6-IR Line Sensor (5-10 mm above track)  │
-  │ • Front Topside: Micro Servo 9g pocket (23.5 × 12.5 mm) & Ackermann tie-rods     │
-  │ • Center Bay: 7.4V 2S LiPo Drive Battery Tray (lowest Center of Gravity)       │
-  │ • Rear Axle: Drive Motor, Differential, and Gearbox                             │
-  └─────────────────────────────────────────────────────────────────────────────────┘
+3S LiPo (+) ──► E-stop NC contact ──► 10 A fuse ──┬──► 7 V buck ──► L298N +12V (VS) ──► motors
+                                                    │
+                                                    └──► 5 V buck ──┬──► Servo (+) + 470–1000 µF cap
+                                                                    ├──► HC-SR04 VCC
+                                                                    └──► L298N +5V logic (5V jumper REMOVED)
+
+3S LiPo (−) ──► common GND ──► ESP32 GND ──► L298N GND ──► Servo (−) ──► HC-SR04 GND ──► buck GNDs
+
+Power bank (5 V / 3 A) ──► Pi 5 USB-C                  (Pi ONLY — never from motor battery)
+Pi 5 USB-A              ──► ESP32 Micro-USB              (powers ESP32; do NOT also feed ESP32 5V pin)
 ```
 
-### 📐 Master CAD Dimensioning Table
+> [!WARNING]
+> **Why 7 V for motors:** TT motors are rated 3–9 V. A 3S LiPo gives 11–12.6 V. The L298N drops ~2 V internally, so motors see ~5 V. **Adjust the 7 V buck with a multimeter before connecting anything.** Set it to exactly 7 V.
 
-| Component | Physical Dimensions (L × W × H) | Mounting Hole Pattern | Fastener Size | CAD Modeling Tolerance / Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Micro Servo 9g (SG90 / MG90S)**| 23.0 × 12.2 × 29.0 mm | 2 holes: **28.0 mm** center-to-center | M2 or M2.5 screws | Pocket cutout: **23.5 × 12.5 mm**, depth 18.0 mm. |
-| **2500–3500 mAh LiPo Power Bank**| ~96.0 × 65.0 × 16.0 mm | Flat enclosure (no screw holes) | 2× 15 mm Velcro straps | Bay: **100.0 × 68.0 mm** with strap slots (18 × 3 mm). |
-| **Raspberry Pi 5** | 85.0 × 56.0 × 17.0 mm | 4 holes: **58.0 × 49.0 mm** rectangle | M2.5 × 10 mm standoffs | Hole diameter: **Ø 2.8 mm**. Leave SD slot accessible. |
-| **Raspberry Pi Cam Rev 1.3** | 25.0 × 24.0 × 9.0 mm | 4 holes: **21.0 × 12.5 mm** rectangle | M2 nylon screws | Lens hole: Ø 8.5 mm; ribbon slot: 17.0 × 2.0 mm. |
-| **HC-SR04 Ultrasonic Module** | 45.0 × 20.0 × 15.0 mm | Transducer center spacing: **26.0 mm**| Front friction fit / clip | Cut 2 barrel holes: **Ø 16.4 mm** spaced 26.0 mm apart. |
-| **400-Point Breadboard** | 82.0 × 55.0 × 9.0 mm | Flat base (adhesive tape back) | Snap-fit border / lip | Recessed deck tray: **83.5 × 56.5 × 3.0 mm**. |
-| **SmartElex RLS-06 (6-IR Array)** | 135.0 × 20.0 × 12.0 mm | 2 holes: **125.0 mm** apart | M3 screws + nuts | Ground clearance: **5.0 – 10.0 mm** from track surface. |
-| **7.4V Motor LiPo Battery** | ~135.0 × 45.0 × 24.0 mm | Battery cradle | 20 mm Velcro strap | Centerline bottom deck tray: **140.0 × 48.0 mm**. |
+> [!CAUTION]
+> **Common ground is mandatory.** Every GND in the system — ESP32, L298N, servo, HC-SR04, both bucks — must connect at **one point**. A missing ground link causes random ESP32 resets, servo jitter, and bad sonar readings.
+
+> [!IMPORTANT]
+> **Do NOT connect the ESP32 5 V pin** when it is already powered via USB from the Pi. Dual-feeding the 5 V rail will damage the ESP32.
 
 ---
 
-## 💻 PART 4 — SOFTWARE STACK & REPOSITORY STRUCTURE
+## 🔌 PART 3 — PIN MAP (per PDF §3 — every used pin)
 
-Everything is tracked and maintained in your repository: `https://github.com/Rohith45-ch/iitb.git`
+| GPIO | Connected To | Direction | Firmware Constant | Notes |
+|------|-------------|-----------|-------------------|-------|
+| **18** | Servo signal wire (yellow / orange) | PWM out, 50 Hz | `PIN_STEER_SERVO` | 1000–2000 µs; mid = 1500 µs |
+| **19** | L298N ENA **and** ENB (both, tied together) | PWM out, 20 kHz | `PIN_MOTOR_PWM` | Remove ENA/ENB jumpers first |
+| **22** | L298N IN1 **and** IN3 | Digital out | `PIN_MOTOR_DIR_A` | HIGH = both motors forward |
+| **23** | L298N IN2 **and** IN4 | Digital out | `PIN_MOTOR_DIR_B` | LOW = both motors forward |
+| **5**  | HC-SR04 TRIG | Digital out, 10 µs pulse | `PIN_US_TRIG` | Shared trigger pulse |
+| **35** | HC-SR04 ECHO via **1 kΩ / 2 kΩ divider** | Input-only pin | `PIN_US_ECHO_CENTER` | Only sonar fitted. Divider gives 3.33 V |
+| **27** | E-stop NO contact to GND; 10 kΩ pull-up to 3.3 V | Input, active-LOW | `PIN_ESTOP_INPUT` | LOW = button pressed |
+| **16** | (Unused when USB connected) | UART2 RX | `PIN_UART_RX` | Serial2 — only if UART active |
+| **17** | (Unused when USB connected) | UART2 TX | `PIN_UART_TX` | Serial2 — only if UART active |
+| **34** | Leave **unconnected** | Input | `PIN_US_ECHO_LEFT` | No sensor fitted |
+| **32** | Leave **unconnected** | Input | `PIN_US_ECHO_RIGHT` | No sensor fitted |
+| **33** | Leave **unconnected** | Input | `PIN_US_ECHO_SIDE` | No sensor fitted |
+| **25** | Leave **unconnected** | Input, pull-up | `PIN_ENCODER_LEFT` | No encoder fitted |
+| **26** | Leave **unconnected** | Input, pull-up | `PIN_ENCODER_RIGHT` | No encoder fitted |
+| USB  | Pi 5 USB-A port | Serial, 115200 baud | `Serial` | Pi sees it as `/dev/ttyUSB0` |
+
+> [!NOTE]
+> Pins 13, 14, 21 are free if the optional IR array (RLS-06) is added later. The firmware has no code for it yet — do not wire it for Round 1.
+
+---
+
+## 🔗 PART 4 — COMPLETE CONNECTION TABLE (per PDF §4, every wire)
+
+### A. Motor Driver (L298N) Connections
+
+| From | To | Wire / Note |
+|------|----|-------------|
+| ESP32 GPIO 19 | L298N ENA **and** ENB | Remove the ENA/ENB jumpers first |
+| ESP32 GPIO 22 | L298N IN1 **and** IN3 | Both motors move forward together |
+| ESP32 GPIO 23 | L298N IN2 **and** IN4 | Swap a motor's two wires if it turns backwards |
+| L298N OUT1 / OUT2 | Left TT motor | Two motor wires |
+| L298N OUT3 / OUT4 | Right TT motor | Two motor wires |
+| 7 V buck out (+) | L298N +12V (VS) | Motor supply — after the fuse |
+| 5 V buck out (+) | L298N +5V logic | Only with the 5 V jumper **removed** from L298N board |
+| Common GND | L298N GND | Must join all other GNDs |
+
+### B. Steering Servo Connections
+
+| From | To | Wire / Note |
+|------|----|-------------|
+| ESP32 GPIO 18 | Servo signal wire | Yellow or orange wire |
+| 5 V buck out (+) | Servo red (+) wire | **+ 470–1000 µF capacitor across this rail** |
+| Common GND | Servo brown / black (−) wire | |
+
+### C. Ultrasonic Sensor (HC-SR04) Connections
+
+| From | To | Wire / Note |
+|------|----|-------------|
+| ESP32 GPIO 5 | HC-SR04 TRIG pin | Direct connection |
+| HC-SR04 ECHO pin | 1 kΩ resistor → GPIO 35 | Voltage divider |
+| GPIO 35 node | 2 kΩ resistor → GND | Gives ≈3.33 V at GPIO 35 |
+| 5 V buck out (+) | HC-SR04 VCC | 5 V sensor |
+| Common GND | HC-SR04 GND | |
+
+**Voltage divider diagram:**
+```
+HC-SR04 ECHO (5V) ──[1 kΩ]──┬── ESP32 GPIO 35
+                              │
+                           [2 kΩ]
+                              │
+                             GND
+
+V_GPIO35 = 5V × 2kΩ/(1kΩ+2kΩ) = 3.33 V  ✅ Safe for ESP32
+```
+
+### D. E-Stop Connections
+
+| From | To | Wire / Note |
+|------|----|-------------|
+| E-stop NO contact | GPIO 27 to GND | When pressed: closes to GND = LOW |
+| 10 kΩ resistor | GPIO 27 to 3.3 V | External pull-up |
+| E-stop NC contact | Battery (+) line, before the fuse | When pressed: opens = cuts ALL power |
+
+### E. Pi 5 ↔ ESP32 Link
+
+| From | To | Note |
+|------|----|------|
+| Pi 5 USB-A port | ESP32 Micro-USB | **Only** link between Pi and ESP32 |
+| Pi 5 CAM port | Pi Camera Rev 1.3 | 15-to-22 pin CSI ribbon cable |
+| Power bank (5V/3A) | Pi 5 USB-C | Pi 5 dedicated power — never from motor battery |
+
+---
+
+## 🛠️ PART 5 — L298N TERMINAL REFERENCE (per PDF §5)
+
+| L298N Terminal | Connect To | Note |
+|---------------|------------|------|
+| +12V (VS) | 7 V buck (+) | Motor supply — NOT battery direct |
+| GND | Common GND | |
+| +5V | 5 V buck (+), or leave unused | **Remove the 5V jumper** on the L298N board if feeding logic from buck |
+| ENA / ENB | ESP32 GPIO 19 | PWM speed control — **jumpers removed** |
+| IN1 / IN2 | ESP32 GPIO 22 / 23 | Motor A direction (IN1/IN2 tied to IN3/IN4) |
+| IN3 / IN4 | ESP32 GPIO 22 / 23 | Motor B direction |
+| OUT1 / OUT2 | Left TT motor | |
+| OUT3 / OUT4 | Right TT motor | |
+
+**Forward logic:** `IN1 HIGH + IN2 LOW` → both motors forward  
+**Reverse logic:** `IN1 LOW + IN2 HIGH` → both motors reverse  
+Both motors follow the same pins. If one motor turns backwards, **swap that motor's own two wires** at OUT1/OUT2 or OUT3/OUT4.
+
+---
+
+## ⚙️ PART 6 — FIRMWARE CONFIG CHANGES (per PDF §6 — MUST DO)
+
+### 1. `firmware/esp32_firmware/esp32_config.h`
+
+| Setting | Correct Value | Why |
+|---------|--------------|-----|
+| `USE_ESC_MOTOR_DRIVER` | **`0`** | Selects L298N path (20 kHz PWM). Default `1` selects RC ESC path which will NOT drive L298N. |
+
+All other firmware pin constants are already correct — see Part 3.
+
+### 2. `config/rpi_tuning.py`
+
+| Setting | Correct Value | Why |
+|---------|--------------|-----|
+| `wheelbase_m` | **`0.170`** | This car's actual wheelbase is 170 mm. Old docs had 0.260 for a different car — do NOT use. |
+| `serial_port` | **`/dev/ttyUSB0`** | USB cable appears as ttyUSB0 on Pi. Already correct. |
+| `baudrate` | **`115200`** | Matches firmware `UART_BAUDRATE`. Already correct. |
+
+### 3. Sonar: Pins 34, 32, 33 (per PDF §6 item 4)
+The firmware reads all four sonar echo pins. Confirm the firmware treats a missing echo as **"no obstacle"** (≥ max range), **not** as "0 cm" (which would trigger a false emergency stop). CHECK in `esp32_vehicle_controller.ino`.
+
+### 4. Encoder: Pins 25, 26 (per PDF §6 item 5)
+The firmware may attach interrupts to encoder pins. Confirm the drive **does not block or wait** on encoder counts. If it does, the car will not move. CHECK in `esp32_vehicle_controller.ino`.
+
+### 5. E-stop Pin 27 (per PDF §6 item 6)
+Confirm `PIN_ESTOP_INPUT` is configured as `INPUT_PULLUP` **or** has the external 10 kΩ pull-up wired. CHECK.
+
+---
+
+## 🚀 PART 7 — BRING-UP ORDER (per PDF §8 — follow exactly)
+
+1. **Fuse out. Battery disconnected.** Power Pi from power bank, ESP32 from Pi USB-A only. Confirm Pi sees ESP32 at `/dev/ttyUSB0`.
+2. **Check every connection** with battery disconnected: continuity, no short between + and −, correct polarity everywhere.
+3. **Fit the fuse.** Connect 3S LiPo with **wheels off the ground**.
+4. **Press E-stop:** Motors and servo must stop immediately. Release before next step.
+5. **Measure buck outputs:** 7 V buck on motor rail, 5 V buck on logic rail. Adjust with a multimeter before connecting L298N.
+6. **Small forward throttle:** Both wheels turn forward. Reverse one motor's two wires at OUT terminals if it runs backwards.
+7. **Sweep steering:** Both front wheels turn same direction, nothing binds at full lock.
+8. **Sonar test:** Hold a hand in front — distance reading changes sensibly. **Only then drive on the track.**
+
+---
+
+## 🔧 PART 8 — TUNING QUICK-REFERENCE
+
+### ESP32 Parameters: [`firmware/esp32_firmware/esp32_config.h`](firmware/esp32_firmware/esp32_config.h)
+
+| Constant | Value | Purpose / How to Tune |
+|----------|-------|----------------------|
+| `USE_ESC_MOTOR_DRIVER` | **`0`** | L298N mode — **do not change** |
+| `SERVO_MID_US` | `1500` | Steering neutral trim. +50 µs if pulls left, −50 µs if pulls right |
+| `SERVO_MIN_US` | `1000` | Full left lock |
+| `SERVO_MAX_US` | `2000` | Full right lock |
+| `MOTOR_MIN_START_PWM` | `35` | Minimum PWM to overcome TT gearbox friction (0–255) |
+| `MOTOR_MAX_SAFE_PWM` | `220` | Maximum PWM cap |
+| `PIN_STEER_SERVO` | `18` | Servo signal GPIO |
+| `PIN_MOTOR_PWM` | `19` | L298N ENA/ENB GPIO |
+| `PIN_MOTOR_DIR_A` | `22` | L298N IN1+IN3 GPIO |
+| `PIN_MOTOR_DIR_B` | `23` | L298N IN2+IN4 GPIO |
+| `PIN_US_TRIG` | `5` | HC-SR04 trigger GPIO |
+| `PIN_US_ECHO_CENTER` | `35` | HC-SR04 echo GPIO (via divider) |
+| `PIN_ESTOP_INPUT` | `27` | E-stop GPIO |
+
+### Raspberry Pi Parameters: [`config/rpi_tuning.py`](config/rpi_tuning.py)
+
+| Constant | Value | Purpose / How to Tune |
+|----------|-------|----------------------|
+| `wheelbase_m` | **`0.170`** | 17.0 cm wheelbase — this car. Do NOT use 0.260 |
+| `lookahead_min_m` | `0.28` | Pure pursuit lookahead. Increase if car wiggles |
+| `v_cruise_ms` | `0.45` | Cruising speed. Reduce to `0.30` for first runs |
+| `obstacle_emergency_dist_m` | `0.25` | Emergency stop trigger distance (25 cm) |
+| `serial_port` | `/dev/ttyUSB0` | USB serial port to ESP32 |
+| `baudrate` | `115200` | Must match `UART_BAUDRATE` in firmware |
+
+---
+
+## 🔍 PART 9 — FAULT FINDER (per PDF §9)
+
+| Symptom | Likely Cause |
+|---------|-------------|
+| Motors hum but do not turn | ENA/ENB not wired to GPIO 19, or PWM below `MOTOR_MIN_START_PWM` (try increasing from 35) |
+| Motors very hot after a minute | Motor supply too high — check 7 V buck; 3S LiPo must NOT reach L298N directly |
+| Servo jitters | Missing 470–1000 µF capacitor on servo supply, or servo powered from ESP32 3.3 V pin |
+| Sonar reads 0 or max constantly | ECHO not divided (5 V going into ESP32), TRIG and ECHO swapped, or unfitted sonar pins picked up |
+| ESP32 resets when motors start | Shared ground missing, or supply sagging under load — add the cap, check the 5 V buck |
+| Car moves after E-stop press | E-stop NC contact not in battery line, or GPIO 27 wired to NC contact instead of NO contact |
+| Pi cannot open `/dev/ttyUSB0` | USB cable is charge-only (no data lines), or ESP32 not powered |
+
+---
+
+## 📁 PART 10 — SOFTWARE ARCHITECTURE
 
 ```
 iitb/
+├── firmware/esp32_firmware/
+│   ├── esp32_config.h               ← All pin & tuning constants (this is your bible)
+│   └── esp32_vehicle_controller.ino ← FreeRTOS dual-core main firmware
 ├── config/
-│   └── rpi_tuning.py                  ← Central Pi-side tuning (camera, speeds, PID, lookahead)
-├── docs/
-│   ├── 3D_PRINTING_CHASSIS_AND_COMPONENTS_ARCHITECTURE.md ← Full mechanical blueprints
-│   ├── ESP32_RPI_WIRING_GUIDE.md      ← Detailed electrical wiring guide
-│   ├── DEVICE_TUNING_BLOCKS.md        ← Parameter tuning playbook
-│   ├── ROUND1_ACTION_PLAN.md          ← Video submission script & track build
-│   └── ROUND1_ARCHITECTURE_AND_BUILD_GUIDE.md ← Full system architecture
-├── firmware/
-│   └── esp32_firmware/
-│       ├── esp32_vehicle_controller.ino ← Dual-core FreeRTOS firmware
-│       ├── esp32_config.h             ← Master pin assignments & actuator trims
-│       ├── ultrasonic_filter.h        ← Median-of-5 + EMA outlier filter
-│       └── tinyml_motion.h            ← Collision & rollover classifier
-├── models/
-│   ├── yolov8n.onnx                   ← Real-time object detection (signs, obstacles)
-│   ├── yolo11n.onnx                   ← Lightweight secondary detector
-│   └── pilotnet_steering.onnx         ← End-to-end neural steering model
+│   └── rpi_tuning.py                ← All Pi-side tuning (wheelbase=0.170, port, speeds)
 ├── scripts/
-│   ├── run_autonomous.py              ← MAIN PRODUCTION ENTRY POINT
-│   ├── verify_system_ready.py         ← Automated pre-flight system diagnostic
-│   ├── detect_hardware.py             ← Auto-detection of camera & ESP32 USB ports
-│   ├── calibrate_camera.py            ← Interactive perspective warp (IPM) calibration
-│   └── run_sim.py                     ← Software-in-the-loop (SITL) simulator
-└── uamc/                              ← Core Python autonomy package
-    ├── perception/ (lane, sign, traffic light, obstacle detectors)
-    ├── planning/   (behavior FSM, motion trajectory generator)
-    ├── control/    (pure pursuit steering, longitudinal PID speed)
-    └── hal/        (serial bridge, camera interface)
+│   ├── run_autonomous.py            ← Main autonomy launcher
+│   ├── verify_system_ready.py       ← Pre-flight diagnostic
+│   ├── detect_hardware.py           ← Auto-detect camera & ESP32 ports
+│   └── record_qualification_run.py  ← Round 1 video recorder
+└── uamc/
+    ├── perception/  (lane, sign, traffic light, obstacle detectors)
+    ├── planning/    (behavior FSM)
+    ├── control/     (pure pursuit steering, PID speed)
+    └── hal/         (serial bridge, camera interface)
 ```
 
 ---
 
-## 🚀 PART 5 — STEP-BY-STEP BRING-UP GUIDE
-
-### Step 1: Flash & Test the ESP32
-1. Plug the ESP32 DevKit into your laptop using a micro-USB data cable.
-2. Open **Arduino IDE**:
-   * In **File $\to$ Preferences**, ensure the ESP32 Board URL is added:
-     `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
-   * Under **Tools $\to$ Board**, select **ESP32 Dev Module**.
-   * Under **Tools $\to$ Port**, select your ESP32's COM port (`COM3`, `COM4`, `/dev/ttyUSB0`, etc.).
-3. Open `firmware/esp32_firmware/esp32_vehicle_controller.ino`.
-4. Click **Upload** ($\rightarrow$). *(If terminal says "Connecting...", hold down physical **BOOT** button for 2 seconds).*
-5. Open **Serial Monitor** at **115200 baud**. You will see live telemetry:
-   `#TEL,2.00,2.00,2.00,0.20,0,0,0.0,0*`
-
-### Step 2: Power Up & Connect to Raspberry Pi 5
-*(Your Pi 5 is already installed and verified!)*
-1. Power the Pi 5 from the **2500–3500 mAh LiPo power bank**.
-2. Connect your laptop to the hotspot (`Heisenberg`).
-3. Open terminal and log in via SSH:
-   ```bash
-   ssh rohith@10.94.129.58
-   ```
-4. Pull the latest code:
-   ```bash
-   cd ~/iitb && git pull origin main
-   ```
-
-### Step 3: Connect Hardware & Run Pre-Flight Diagnostics
-1. Plug the **ESP32** into any USB-A port on the Raspberry Pi 5 using the USB cable.
-2. Connect the **Raspberry Pi Camera Rev 1.3** to port `CAM1` on the Pi 5 using the 22-to-15 pin adapter ribbon cable.
-3. Wire the **Micro Servo 9g** to ESP32 Pin 18 and **ESC** to ESP32 Pin 19.
-4. Wire the **HC-SR04** to ESP32 Pin 5 (Trig) and Pin 35 (Echo via divider).
-5. In your Pi 5 SSH terminal, run the hardware detector:
-   ```bash
-   python3 scripts/detect_hardware.py
-   ```
-6. Run the master pre-flight test:
-   ```bash
-   python3 scripts/verify_system_ready.py
-   ```
-   *Expected output: ALL PRE-FLIGHT CHECKS PASSED!*
-
----
-
-## ⚙️ PART 6 — TUNING & CALIBRATION QUICK-REFERENCE
-
-### ESP32 Parameters: [`firmware/esp32_firmware/esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h)
-
-| Constant | Default | Purpose / How to Tune |
-| :--- | :--- | :--- |
-| `SERVO_MID_US` | `1500` | **Steering Neutral Trim:** Increase if car pulls left; decrease if it pulls right. |
-| `SERVO_MIN_US` | `1000` | Full Left steering lock pulse width (-28.0°). |
-| `SERVO_MAX_US` | `2000` | Full Right steering lock pulse width (+28.0°). |
-| `ESC_NEUTRAL_US` | `1500` | ESC neutral stop pulse width ($1500\ \mu\text{s}$). |
-| `ESC_FORWARD_SAFE_CAP_US` | `1700` | Safe maximum forward speed cap for indoor practice. Reduce to 1620 for slower testing. |
-| `PIN_STEER_SERVO` | `18` | Micro Servo 9g PWM GPIO pin. |
-| `PIN_MOTOR_PWM` | `19` | ESC throttle PWM GPIO pin. |
-| `PIN_US_TRIG` | `5` | Ultrasonic trigger pulse GPIO pin. |
-| `PIN_US_ECHO_CENTER` | `35` | Ultrasonic center echo GPIO pin. |
-| `PIN_ESTOP_INPUT` | `27` | Physical emergency kill switch GPIO pin. |
-
-### Raspberry Pi Parameters: [`config/rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py)
-
-| Constant | Default | Purpose / How to Tune |
-| :--- | :--- | :--- |
-| `wheelbase_m` | `0.260` | Distance between front and rear axles in meters ($26.0\text{ cm}$). |
-| `lookahead_min_m`| `0.28` | Pure pursuit lookahead. Increase if car wiggles; decrease if cutting corners. |
-| `v_cruise_ms` | `0.45` | Main cruising speed ($\approx 1.6\text{ km/h}$). Set to `0.35` for slower, safer testing. |
-| `obstacle_emergency_dist_m` | `0.25` | Obstacle distance trigger for emergency stop ($25\text{ cm}$). |
-
----
-
-## 🏆 PART 7 — LAUNCHING FOR ROUND 1 QUALIFICATION
-
-Place your vehicle on your practice track, turn on the motor battery, and run:
+## 🏆 PART 11 — ROUND 1 LAUNCH COMMANDS
 
 ```bash
-# Production launch with YOLOv8 obstacle detection in headless mode:
+# SSH into Pi 5 (hotspot: Heisenberg)
+ssh rohith@10.94.129.58
+
+# Pull latest code
+cd ~/iitb && git pull origin main
+
+# Run pre-flight checks
+python3 scripts/verify_system_ready.py
+
+# Launch autonomous run
 python3 scripts/run_autonomous.py --serial-port /dev/ttyUSB0 --use-yolo --no-gui
-```
 
-To record the official qualification run video with telemetry overlay:
-```bash
+# Record qualification video
 python3 scripts/record_qualification_run.py --output-video round1_submission.mp4
 ```
 
 ---
-*Single Source of Truth Manual — Maintained & committed directly in [Rohith45-ch/iitb](https://github.com/Rohith45-ch/iitb).*
+
+*Single Source of Truth — Built from `Wiring_and_Pin_Map.pdf` + `esp32_config.h` · [Rohith45-ch/iitb](https://github.com/Rohith45-ch/iitb)*

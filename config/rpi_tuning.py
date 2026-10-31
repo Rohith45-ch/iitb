@@ -66,7 +66,7 @@ class AIModelConfig:
 @dataclass
 class VehicleControlConfig:
     # Pure Pursuit Lateral Steering Controller
-    wheelbase_m: float = 0.260           # 26.0 cm wheelbase (1:10 scale chassis)
+    wheelbase_m: float = 0.170           # 17.0 cm wheelbase (PDF-confirmed: Wiring_and_Pin_Map sec.7)
     lookahead_min_m: float = 0.28        # Minimum lookahead distance at low speed
     lookahead_gain: float = 0.40         # Speed-adaptive lookahead (l_d = k * v + l_d0)
     max_servo_angle_deg: float = 28.0

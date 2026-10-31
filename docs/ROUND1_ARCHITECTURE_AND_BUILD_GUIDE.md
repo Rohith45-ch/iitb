@@ -2,7 +2,7 @@
 ### Urban Autonomous Mobility Challenge (UAMC) — Techfest, IIT Bombay
 **Vehicle Model:** AML-Rover-V1  
 **Target:** Round 1 Qualification (Top 25 Teams)  
-**Hardware Profile:** Raspberry Pi 5 (8GB) + ESP32 DevKit v1 + 1/10 RC Chassis + ESC + Single Camera + HC-SR04  
+**Hardware Profile:** Raspberry Pi 5 (8GB) + ESP32 DevKit V1 + L298N + 2× TT Gear Motors + 3S LiPo 2200mAh + Single Camera + HC-SR04  
 
 ---
 
@@ -24,30 +24,36 @@ This architecture runs **100% on the hardware you currently have in hand**, elim
 ```mermaid
 flowchart TD
     subgraph Power["⚡ Power Subsystem"]
-        BAT["7.4V 2S LiPo / 7.2V NiMH Battery"] -->|"High-Current Main Power"| ESC["Electronic Speed Controller (ESC)"]
+        BAT["3S LiPo 2200 mAh (11.1V nominal)"] -->|"NC contact → 10A Fuse"| BUCK7["7V Buck Converter"]
+        BAT -->|"NC contact → 10A Fuse"| BUCK5["5V Buck Converter"]
         PB["5V 3A+ Power Bank"] -->|"USB-C Cable"| RPI["Raspberry Pi 5 (8GB)"]
-        ESC -->|"Built-in 5V BEC (Red/Brown Wire)"| SERVO["Steering Servo"]
+        BUCK7 -->|"Motor Supply"| L298N["L298N Motor Driver"]
+        BUCK5 -->|"Logic + Servo + Sonar"| SERVO["Steering Servo SG90/MG90S"]
+        BUCK5 -->|"5V VCC"| HC["HC-SR04 Ultrasonic"]
+        BUCK5 -->|"Logic 5V (jumper removed)"| L298N
     end
 
     subgraph RPi5["🧠 High-Level Compute (Raspberry Pi 5)"]
-        CAM["Wide-Angle / USB Camera"] -->|"OpenCV (640x480 @ 30 FPS)"| PERC["Perception Engine"]
+        CAM["Pi Camera Rev 1.3 (CSI)"] -->|"OpenCV (640x480 @ 30 FPS)"| PERC["Perception Engine"]
         PERC --> IPM["Lane Detector (IPM + Polyfit)"]
         PERC --> AI["Lightweight AI / Rule-Based Detector"]
         IPM & AI --> FSM["Behavior Planner (FSM)"]
         FSM --> CTRL["Pure Pursuit + Longitudinal PID"]
-        CTRL --> BRIDGE["Serial Bridge (UART Protocol)"]
+        CTRL --> BRIDGE["Serial Bridge (USB, /dev/ttyUSB0)"]
     end
 
-    subgraph ESP32["⚡ Low-Level Real-Time Controller (ESP32 DevKit)"]
+    subgraph ESP32["⚡ Low-Level Real-Time Controller (ESP32 DevKit V1)"]
         CORE0["Core 0: Sensor Processing\n(Median-5 + EMA Filter)"]
-        CORE1["Core 1: Actuation & Safety\n(50 Hz PWM + 150ms E-Stop Watchdog)"]
+        CORE1["Core 1: Actuation & Safety\n(20kHz L298N PWM + 150ms E-Stop Watchdog)"]
     end
 
     subgraph ActuatorsSensors["🚗 Vehicle Chassis & Actuation"]
-        HC["HC-SR04 Ultrasonic Sensor"] -->|"Echo / Trig"| CORE0
-        CORE1 -->|"50 Hz PWM (1000-2000 µs)"| ESC
-        CORE1 -->|"50 Hz PWM (Angle Command)"| SERVO
-        ESC -->|"High Current Drivetrain Output"| MOTOR["Chassis Drive Motor"]
+        HC -->|"Echo (GPIO35 via divider) / Trig (GPIO5)"| CORE0
+        CORE1 -->|"20 kHz PWM GPIO19 → ENA/ENB"| L298N
+        CORE1 -->|"DIR_A GPIO22, DIR_B GPIO23"| L298N
+        CORE1 -->|"50 Hz PWM GPIO18"| SERVO
+        L298N -->|"OUT1/2 Left Motor"| MOTL["Left TT Gear Motor"]
+        L298N -->|"OUT3/4 Right Motor"| MOTR["Right TT Gear Motor"]
     end
 
     BRIDGE <== "USB-A to Micro-USB Cable\n(/dev/ttyUSB0 @ 115200 baud)" ==> CORE1
@@ -62,8 +68,8 @@ The connection between the Raspberry Pi 5 and ESP32 DevKit is handled over a sta
 ### A. Power Distribution Architecture
 | Power Source | Consumer | Voltage / Current | Purpose |
 | :--- | :--- | :--- | :--- |
-| **7.4V LiPo / 7.2V NiMH Battery** | ESC Battery Input | 7.2V–7.4V nominal | High-current drive motor propulsion |
-| **ESC Internal BEC** | Steering Servo | 5.0V regulated | Powers steering servo without overloading ESP32 |
+| **3S LiPo 2200 mAh** | 7V Buck Converter → L298N +12V(VS) | 11.1V nominal, set buck to 7V | High-current TT motor supply |
+| **5V Buck Converter** | Steering Servo | 5.0V regulated | Powers servo (+ 470-1000µF cap) and HC-SR04; L298N logic |
 | **5V 3A+ Power Bank** | Raspberry Pi 5 | 5.0V USB-C | Clean isolated power for Pi 5 compute and camera |
 | **Raspberry Pi 5 USB Port** | ESP32 Micro-USB | 5.0V USB VBUS | Powers ESP32 logic and sensor rail |
 
@@ -72,8 +78,8 @@ The connection between the Raspberry Pi 5 and ESP32 DevKit is handled over a sta
 | :--- | :--- | :--- | :--- |
 | **Steering Servo** | PWM Signal (White/Orange) | **GPIO 18** | 50 Hz PWM (`LEDC_CHANNEL_0`) |
 | **Steering Servo** | Ground (Black/Brown) | **GND** | Common Ground |
-| **Drive Motor ESC** | PWM Signal (White/Yellow) | **GPIO 19** | 50 Hz PWM (`LEDC_CHANNEL_1`, 1000–2000 µs) |
-| **Drive Motor ESC** | Ground (Black/Brown) | **GND** | Common Ground |
+| **L298N ENA + ENB | PWM Speed (20 kHz) | GPIO 19 | 20 kHz PWM (LEDC_CHANNEL_1, 0–255 duty)) |
+| **L298N GND** | Ground | **GND** | Common Ground — must join all other GNDs |
 | **HC-SR04 Ultrasonic** | VCC | **VIN (5V)** | Ultrasonic 5V supply |
 | **HC-SR04 Ultrasonic** | GND | **GND** | Ground |
 | **HC-SR04 Ultrasonic** | Trigger | **GPIO 5** | 10 µs Trigger Pulse (`PIN_US_TRIG`) |
@@ -89,7 +95,7 @@ sequenceDiagram
     participant RPi as Raspberry Pi 5 (Python)
     participant USB as USB Serial Bridge (115200)
     participant ESP as ESP32 (FreeRTOS)
-    participant HW as Servo & ESC
+    participant HW as Servo & L298N
 
     loop 30 Hz Control Loop
         Cam->>RPi: Capture Raw Frame (640x480 @ 30 FPS)
@@ -98,7 +104,7 @@ sequenceDiagram
         USB->>RPi: Parse Ultrasonic Distance (< 20 cm triggers Stop FSM)
         RPi->>USB: Send Command `#CMD,<steer_norm>,<throttle_norm>,<estop_flag>*`
         USB->>ESP: ESP32 Core 1 Decodes Packet
-        ESP->>HW: Write 50 Hz PWM to Servo (GPIO 18) and ESC (GPIO 19)
+        ESP->>HW: Write 50 Hz PWM to Servo (GPIO 18); 20 kHz PWM to L298N ENA/ENB (GPIO 19) + DIR_A/B (GPIO 22/23)
     end
 ```
 
@@ -178,7 +184,7 @@ This records real-time camera footage with superimposed steering angles, detecte
 1. **Round 1 (Immediate - Confirmed In Hand):**
    * Raspberry Pi 5 + ESP32 DevKit v1 + USB Cable.
    * Single front HC-SR04 ultrasonic sensor.
-   * Steering servo + Motor ESC + 7.4V Battery + 5V Power Bank.
+   * Steering servo (SG90/MG90S) + L298N + 2x TT Gear Motors + 3S LiPo 2200mAh + 7V buck + 5V buck + 5V Power Bank.
 2. **Round 2 (On-Site Finals at IIT Bombay):**
    * **MPU6050 IMU:** Add to ESP32 I²C bus (`SDA=GPIO 21`, `SCL=GPIO 22`) for slip compensation and yaw gyro integration.
    * **BSS138 Bidirectional Logic Level Shifter:** Place between HC-SR04 Echo pins (5V) and ESP32 GPIOs (3.3V) for long-term electrical safety.

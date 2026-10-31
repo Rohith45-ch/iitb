@@ -45,7 +45,7 @@ def run_simulation(duration_seconds: float = 12.0, headless: bool = True):
     obstacle_detector = ObstacleDetector()
 
     planner = BehaviorPlanner(cruising_velocity_ms=0.45, approach_velocity_ms=0.25)
-    lateral_ctrl = PurePursuitController(wheelbase_m=0.260, max_steering_angle_deg=28.0)
+    lateral_ctrl = PurePursuitController(wheelbase_m=0.170, max_steering_angle_deg=28.0)
     longitudinal_ctrl = LongitudinalPIDController(kp=1.8, ki=0.45, kd=0.08)
     safety_mgr = EmergencyStopManager()
 

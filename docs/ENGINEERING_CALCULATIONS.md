@@ -19,7 +19,7 @@ Where:
 - $(x, y)$ is the Cartesian position of the rear axle midpoint.
 - $\theta$ is the vehicle heading orientation in the global frame.
 - $v$ is the longitudinal forward velocity.
-- $L$ is the vehicle wheelbase: **$L = 260\text{ mm} = 0.260\text{ m}$**.
+- $L$ is the vehicle wheelbase: **$L = 170\text{ mm} = 0.170\text{ m}$**.
 - $\delta$ is the effective steering angle of the front wheels.
 
 ### B. Turning Radius Calculation
@@ -30,7 +30,7 @@ $$R = \frac{L}{\tan(\delta)}$$
 Given our physical steering servo linkage limits:
 - Maximum steering angle: $\delta_{max} = 28^\circ \approx 0.4886\text{ rad}$
 - Minimum turning radius:
-  $$R_{min} = \frac{0.260}{\tan(28^\circ)} = \frac{0.260}{0.5317} = 0.4890\text{ m} \approx 48.9\text{ cm}$$
+  $$R_{min} = \frac{0.170}{\tan(28^\circ)} = \frac{0.170}{0.5317} = 0.3197\text{ m} \approx 32.0\text{ cm}$$
 
 **Validation with Arena Constraints:**
 Standard UAMC arena lanes are $35\text{ cm}$ wide per lane ($70\text{ cm}$ total two-way road), and roundabouts have an inner island radius $R_{island} \ge 40\text{ cm}$ with lane center radius $R_{roundabout} \approx 57.5\text{ cm}$.
@@ -50,13 +50,13 @@ $$d_{total} = v \cdot t_{reaction} + \frac{v^2}{2 \cdot a_{decel}}$$
 Where:
 - $v$: Vehicle operating speed ($0.45\text{ m/s}$ standard cruising speed, $0.65\text{ m/s}$ maximum burst speed).
 - $t_{reaction}$: Total perception and computation latency:
-  $$t_{reaction} = t_{camera\_exposure} + t_{inference} + t_{uart\_transmission} + t_{esc\_response}$$
+  $$t_{reaction} = t_{camera\_exposure} + t_{inference} + t_{uart\_transmission} + t_{motor\_driver\_response}$$
   - $t_{camera\_exposure} = 16.7\text{ ms}$ (at 60 FPS)
   - $t_{inference} = 25.0\text{ ms}$ (Perception pipeline processing)
   - $t_{uart\_transmission} = 2.0\text{ ms}$ (115200 baud serial packet)
-  - $t_{esc\_response} = 15.0\text{ ms}$ (Motor driver inductance & brake response)
+  - $t_{motor\_driver\_response} = 15.0\text{ ms}$ (L298N motor driver & TT motor response)
   - **$t_{reaction, max} \approx 58.7\text{ ms} \approx 0.06\text{ s}$**.
-- $a_{decel}$: Controlled motor deceleration rate (with active regenerative / dynamic braking on ESC):
+- $a_{decel}$: Controlled motor deceleration rate (with active braking on L298N):
   $$a_{decel} = 2.2\text{ m/s}^2$$
 
 ### B. Numerical Solution:
@@ -118,7 +118,7 @@ Where:
 ## 5. Summary of Tuned Calibration Constants
 | Parameter | Symbol | Design Value | Units |
 | :--- | :--- | :--- | :--- |
-| Wheelbase | $L$ | 0.260 | m |
+| Wheelbase | $L$ | 0.170 | m |
 | Track Width | $W$ | 0.165 | m |
 | Max Steering Angle | $\delta_{max}$ | 28.0 | degrees |
 | Cruising Velocity | $v_{cruise}$ | 0.45 | m/s |

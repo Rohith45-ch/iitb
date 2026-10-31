@@ -3,7 +3,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Hardware](https://img.shields.io/badge/Compute-Raspberry%20Pi%204%20%2B%20ESP32-blue.svg)]()
+[![Hardware](https://img.shields.io/badge/Compute-Raspberry%20Pi%205%20%2B%20ESP32-blue.svg)]()
 
 > **Core Theme:** *"A self-driving car navigating a smart city street."*  
 > An autonomous 1:10 scaled vehicle engineered to navigate a miniature tabletop urban street network with **100% onboard physical AI** and zero live remote control.
@@ -36,7 +36,7 @@ Design and build a scaled autonomous vehicle capable of navigating a miniature u
 
 | Element | Requirement | Implementation in this Repository |
 | :--- | :--- | :--- |
-| **Hardware** | Single-board computer + microcontroller paired with camera, ultrasonic, and ESC | **Raspberry Pi 5 (SBC)** paired with **ESP32 Dual-Core (MCU)**, CSI/USB camera, single front HC-SR04 ultrasonic sensor, and ESC-driven powertrain |
+| **Hardware** | Single-board computer + microcontroller paired with camera, ultrasonic, and L298N motor driver | **Raspberry Pi 5 (SBC)** paired with **ESP32 Dual-Core (MCU)**, Pi Camera Rev 1.3 (15-to-22 pin CSI), single front HC-SR04 ultrasonic, L298N H-bridge + 2× TT gear motors, 3S LiPo 2200 mAh, 7V and 5V buck converters |
 | **Autonomy ("Physical AI")** | Genuine onboard perception and decision-making with zero remote control | Real-time OpenCV pipeline, Behavioral Finite State Machine (FSM), Pure Pursuit lateral tracking, and discrete PID longitudinal control running locally |
 | **Engineering Documentation** | Clear account of system architecture, perception approach, and control stack | Comprehensive [Technical Design Document (TDD)](docs/TECHNICAL_DESIGN_DOCUMENT.md) and [Engineering Calculations](docs/ENGINEERING_CALCULATIONS.md) with full mathematical derivations |
 | **Safety Compliance** | Demonstrable working emergency stop, fused battery output, safe wiring | Hardwired mechanical latching kill switch, 15A inline fuse, 3.3V logic level shifting, and a dual-watchdog system (RPi software ping + ESP32 150 ms hardware timer watchdog) |
@@ -153,15 +153,15 @@ Detailed derivations are documented in [docs/ENGINEERING_CALCULATIONS.md](docs/E
 ### A. Ackermann Steering Kinematics & Turning Radius
 The kinematic bicycle model governs turning:
 $$\tan(\delta) = \frac{L}{R} \implies R_{min} = \frac{L}{\tan(\delta_{max})}$$
-- Wheelbase: $L = 0.260\text{ m}$ ($26.0\text{ cm}$)
+- Wheelbase: $L = 0.170\text{ m}$ ($17.0\text{ cm}$)
 - Maximum steering angle: $\delta_{max} = 28.0^\circ$ ($0.4886\text{ rad}$)
 - Minimum turning radius:
-  $$R_{min} = \frac{0.260}{\tan(28.0^\circ)} = \mathbf{0.489\text{ m}} \quad (48.9\text{ cm})$$
-- *Arena Compatibility*: The arena roundabout inner radius is $R_{island} \ge 40\text{ cm}$ with lane center at $R_{lane} \approx 57.5\text{ cm}$. Since $R_{min} = 48.9\text{ cm} < 57.5\text{ cm}$, the vehicle easily negotiates the sharpest curve without crossing lane boundaries.
+  $$R_{min} = \frac{0.170}{\tan(28.0^\circ)} = \mathbf{0.320\text{ m}} \quad (32.0\text{ cm})$$
+- *Arena Compatibility*: The arena roundabout inner radius is $R_{island} \ge 40\text{ cm}$ with lane center at $R_{lane} \approx 57.5\text{ cm}$. Since $R_{min} = 32.0\text{ cm} < 57.5\text{ cm}$ (for $L = 170\text{ mm}$), the vehicle easily negotiates the sharpest curve without crossing lane boundaries.
 
 ### B. Longitudinal Dynamics & Stopping Distance
 $$d_{stopping} = d_{reaction} + d_{braking} = v \cdot t_{reaction} + \frac{v^2}{2 \cdot a_{decel}}$$
-- Reaction time: $t_{reaction} \approx 0.06\text{ s}$ ($16.7\text{ ms}$ camera $+ 25\text{ ms}$ inference $+ 2\text{ ms}$ UART $+ 15\text{ ms}$ ESC response)
+- Reaction time: $t_{reaction} \approx 0.06\text{ s}$ ($16.7\text{ ms}$ camera $+ 25\text{ ms}$ inference $+ 2\text{ ms}$ USB $+ 15\text{ ms}$ L298N motor response)
 - Deceleration: $a_{decel} = 2.2\text{ m/s}^2$ (active dynamic motor braking)
 - At cruising speed ($v = 0.45\text{ m/s}$):
   $$d_{stopping} = (0.45 \times 0.06) + \frac{0.45^2}{2 \times 2.2} = 0.027 + 0.046 = \mathbf{7.3\text{ cm}}$$

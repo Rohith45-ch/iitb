@@ -23,7 +23,7 @@ class PurePursuitController:
 
     def __init__(
         self,
-        wheelbase_m: float = 0.260,
+        wheelbase_m: float = 0.170,
         max_steering_angle_deg: float = 28.0,
         base_lookahead_m: float = 0.22,
         speed_lookahead_gain: float = 0.15,

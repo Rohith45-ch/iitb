@@ -51,11 +51,13 @@ def scan_serial_ports():
         print("  \033[91m[ERROR]\033[0m 'pyserial' not installed. Run: pip install pyserial")
         return None
 
+    ports = list(serial.tools.list_ports.comports())
     usb_ports = [
         p for p in ports
         if "usb" in p.device.lower() or "acm" in p.device.lower() or "com" in p.device.lower()
     ]
     target_ports = usb_ports if usb_ports else ports
+    esp32_port = None
 
     if not usb_ports:
         print("  \033[93m[INFO]\033[0m No USB serial devices detected (/dev/ttyUSB* or /dev/ttyACM*).")

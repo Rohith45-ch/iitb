@@ -13,10 +13,10 @@
 // 1. PIN CONFIGURATION (ESP32 DevKit V1)
 // ==========================================
 // Actuators
-#define PIN_STEER_SERVO          18   // Steering Servo (LEDC Channel 0, 50Hz)
-#define PIN_MOTOR_PWM            19   // Motor Speed / ESC Signal (Pin 19)
-#define PIN_MOTOR_DIR_A          22   // (Legacy L298N only) Motor Driver IN1
-#define PIN_MOTOR_DIR_B          23   // (Legacy L298N only) Motor Driver IN2
+#define PIN_STEER_SERVO          18   // Steering Servo SG90/MG90S (LEDC Ch 0, 50Hz, 1000-2000µs)
+#define PIN_MOTOR_PWM            19   // L298N ENA + ENB (both tied together) — 20kHz PWM speed
+#define PIN_MOTOR_DIR_A          22   // L298N IN1 + IN3 — Motor direction A (HIGH=fwd)
+#define PIN_MOTOR_DIR_B          23   // L298N IN2 + IN4 — Motor direction B (LOW=fwd)
 
 // Ultrasonic Sensor Array (HC-SR04)
 #define PIN_US_TRIG              5    // Shared 10us Trigger Pin
@@ -49,30 +49,49 @@
 #define SERVO_MAX_PHYSICAL_DEG   28.0f     // Maximum physical Ackermann steering travel
 
 // ==========================================
-// 3. MOTOR DRIVE & ESC CALIBRATION (1/10 RC)
+// 3. MOTOR DRIVE — L298N H-BRIDGE (PDF-confirmed build)
 // ==========================================
-// Set to 1 for RC ESC (recommended for 1:10 chassis), or 0 for dual-wire L298N
-#define USE_ESC_MOTOR_DRIVER     1
+// *** PDF SPEC: USE_ESC_MOTOR_DRIVER = 0  (L298N + TT Gear Motors) ***
+// Set to 0 for L298N dual H-bridge (our actual hardware per Wiring_and_Pin_Map PDF)
+// Set to 1 only if swapping to an RC ESC in future
+#define USE_ESC_MOTOR_DRIVER     0
 
-// ESC Servo-style PWM Tuning (when USE_ESC_MOTOR_DRIVER == 1)
+// L298N H-Bridge PWM Tuning (USE_ESC_MOTOR_DRIVER == 0) — ACTIVE
+// GPIO 19 → L298N ENA + ENB (both tied together, jumpers removed)
+// GPIO 22 → L298N IN1 + IN3 (direction A — forward = HIGH)
+// GPIO 23 → L298N IN2 + IN4 (direction B — forward = LOW)
+// Motor supply: 7 V buck converter output → L298N +12V(VS) terminal
+// Logic supply: 5 V buck converter output → L298N +5V terminal (5V jumper REMOVED)
+#define MOTOR_LEDC_CH            1
+#define MOTOR_LEDC_FREQ          20000     // 20 kHz ultrasonic PWM (inaudible)
+#define MOTOR_LEDC_RES           8         // 8-bit resolution (0–255)
+#define MOTOR_MIN_START_PWM      35        // Minimum PWM to overcome TT gearbox static friction
+#define MOTOR_MAX_SAFE_PWM       220       // Maximum PWM duty-cycle safety cap
+
+// RC ESC Servo-style PWM Tuning (USE_ESC_MOTOR_DRIVER == 1) — INACTIVE for this build
 #define ESC_LEDC_CH              1
 #define ESC_LEDC_FREQ            50        // 50 Hz standard RC ESC frequency
 #define ESC_LEDC_RES             16        // 16-bit resolution for microsecond precision
 #define ESC_REVERSE_MAX_US       1000      // Full reverse pulse width (us)
 #define ESC_NEUTRAL_US           1500      // Neutral / stopped pulse width (us)
 #define ESC_FORWARD_MAX_US       2000      // Full forward pulse width (us)
-#define ESC_FORWARD_SAFE_CAP_US  1700      // Safe forward speed limiter for indoor testing (1500-2000 us)
+#define ESC_FORWARD_SAFE_CAP_US  1700      // Safe forward speed limiter for indoor testing
 #define ESC_DEADBAND_NORM        0.04f     // Small deadband around 0 throttle
 
-// Legacy L298N H-Bridge Tuning (when USE_ESC_MOTOR_DRIVER == 0)
-#define MOTOR_LEDC_CH            1
-#define MOTOR_LEDC_FREQ          20000     // 20 kHz ultrasonic PWM
-#define MOTOR_LEDC_RES           8         // 8-bit resolution (0 - 255)
-#define MOTOR_MIN_START_PWM      35        // Minimum PWM duty to overcome gearbox friction
-#define MOTOR_MAX_SAFE_PWM       220       // Maximum duty cycle cap
+// ==========================================
+// 4. SENSOR FITTINGS (per Wiring_and_Pin_Map PDF §1, §3, §6, §7)
+// ==========================================
+// PDF §6 item 4 & §7: Only single center sonar is fitted.
+// Setting to 1 skips reading unfitted pins (34, 32, 33), avoiding 60ms timeout delays
+// and preventing false emergency stops from floating-pin electrical noise.
+#define SINGLE_CENTER_SONAR_ONLY 1
+
+// PDF §6 item 5 & §7: Encoders not fitted for this car.
+// Setting to 0 disables attaching interrupts to pins 25/26, preventing noise triggers.
+#define ENABLE_WHEEL_ENCODERS    0
 
 // ==========================================
-// 4. ULTRASONIC SENSOR FILTER TUNING
+// 5. ULTRASONIC SENSOR FILTER TUNING
 // ==========================================
 #define US_FILTER_WINDOW_SIZE    5         // Median-of-5 sliding window size
 #define US_EMA_SMOOTHING_ALPHA   0.35f     // Exponential Moving Average weight (0.0 - 1.0)

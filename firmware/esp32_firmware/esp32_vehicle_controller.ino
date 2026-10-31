@@ -87,20 +87,25 @@ void setMotorThrottle(float norm) {
   ledcWrite(ESC_LEDC_CH, duty);
 
 #else
-  // Legacy L298N Dual-wire H-Bridge
+  // L298N Dual-wire H-Bridge (USE_ESC_MOTOR_DRIVER == 0)
+  // Scaling accounts for MOTOR_MIN_START_PWM to overcome TT gearbox static friction
   if (abs(norm) < 0.05f) {
-    digitalWrite(PIN_MOTOR_DIR_A, HIGH);
-    digitalWrite(PIN_MOTOR_DIR_B, HIGH);
+    digitalWrite(PIN_MOTOR_DIR_A, LOW);
+    digitalWrite(PIN_MOTOR_DIR_B, LOW);
     ledcWrite(MOTOR_LEDC_CH, 0);
   } else if (norm > 0.0f) {
+    // Forward: IN1/IN3 HIGH, IN2/IN4 LOW
     digitalWrite(PIN_MOTOR_DIR_A, HIGH);
     digitalWrite(PIN_MOTOR_DIR_B, LOW);
-    uint32_t pwm = (uint32_t)(norm * 255.0f);
+    uint32_t pwm = (uint32_t)(MOTOR_MIN_START_PWM + norm * (MOTOR_MAX_SAFE_PWM - MOTOR_MIN_START_PWM));
+    pwm = constrain(pwm, 0, MOTOR_MAX_SAFE_PWM);
     ledcWrite(MOTOR_LEDC_CH, pwm);
   } else {
+    // Reverse: IN1/IN3 LOW, IN2/IN4 HIGH
     digitalWrite(PIN_MOTOR_DIR_A, LOW);
     digitalWrite(PIN_MOTOR_DIR_B, HIGH);
-    uint32_t pwm = (uint32_t)(abs(norm) * 255.0f);
+    uint32_t pwm = (uint32_t)(MOTOR_MIN_START_PWM + abs(norm) * (MOTOR_MAX_SAFE_PWM - MOTOR_MIN_START_PWM));
+    pwm = constrain(pwm, 0, MOTOR_MAX_SAFE_PWM);
     ledcWrite(MOTOR_LEDC_CH, pwm);
   }
 #endif
@@ -123,7 +128,17 @@ float readUltrasonic(int echoPin) {
 
 void TaskSensorAcquisition(void *pvParameters) {
   while (true) {
-    // 1. Read ultrasonic sensors and filter outliers & acoustic multipath echoes
+#if SINGLE_CENTER_SONAR_ONLY
+    // PDF §1, §3, §6 item 4, §7: Only single Center Sonar fitted.
+    // Unfitted sonars (left, right, side) are bypassed to avoid 60ms timeout lag and floating-pin false stops.
+    float raw_c = readUltrasonic(PIN_US_ECHO_CENTER);
+    g_us_center = filterCenter.filter(raw_c);
+    g_us_left = 3.0f;
+    g_us_right = 3.0f;
+    g_us_side = 3.0f;
+    vTaskDelay(pdMS_TO_TICKS(30));
+#else
+    // Multi-sonar mode (when all 4 sensors are physically wired)
     float raw_l = readUltrasonic(PIN_US_ECHO_LEFT);
     g_us_left = filterLeft.filter(raw_l);
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -139,8 +154,9 @@ void TaskSensorAcquisition(void *pvParameters) {
     float raw_s = readUltrasonic(PIN_US_ECHO_SIDE);
     g_us_side = filterSide.filter(raw_s);
     vTaskDelay(pdMS_TO_TICKS(10));
+#endif
 
-    // 2. Hardware Emergency Stop button
+    // 2. Hardware Emergency Stop button (PDF §3, §6 item 6: active-LOW)
     g_estop_button_pressed = (digitalRead(PIN_ESTOP_INPUT) == LOW);
 
     // 3. TinyML Collision & Rollover Check (100 Hz baseline)
@@ -155,6 +171,14 @@ void setup() {
   // Primary Serial for USB debug & secondary for RPi UART
   Serial.begin(115200);
   Serial2.begin(115200, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
+
+  // E-Stop Pin Setup (PDF §6 item 6: internal pullup + external 10k to 3.3V)
+  pinMode(PIN_ESTOP_INPUT, INPUT_PULLUP);
+
+  // Ultrasonic GPIO Setup (PDF §3: Pin 5 TRIG out, Pin 35 ECHO in via 1k/2k divider)
+  pinMode(PIN_US_TRIG, OUTPUT);
+  digitalWrite(PIN_US_TRIG, LOW);
+  pinMode(PIN_US_ECHO_CENTER, INPUT);
 
   // Actuator LEDC Setup
   ledcSetup(SERVO_LEDC_CH, SERVO_LEDC_FREQ, SERVO_LEDC_RES);
@@ -172,20 +196,25 @@ void setup() {
   delay(1500);
   Serial.println(F("[ESP32] ESC armed and vehicle ready."));
 #else
-  // Legacy L298N Dual-wire H-Bridge Setup
+  // L298N Dual H-Bridge Setup (USE_ESC_MOTOR_DRIVER == 0, per PDF §3, §5, §6)
   pinMode(PIN_MOTOR_DIR_A, OUTPUT);
   pinMode(PIN_MOTOR_DIR_B, OUTPUT);
+  digitalWrite(PIN_MOTOR_DIR_A, LOW);
+  digitalWrite(PIN_MOTOR_DIR_B, LOW);
   ledcSetup(MOTOR_LEDC_CH, MOTOR_LEDC_FREQ, MOTOR_LEDC_RES);
   ledcAttachPin(PIN_MOTOR_PWM, MOTOR_LEDC_CH);
   setSteeringNormalized(0.0f);
   setMotorThrottle(0.0f);
+  Serial.println(F("[ESP32] L298N Motor Driver configured (20 kHz PWM on Pin 19)."));
 #endif
 
-  // Encoders with Hardware Interrupts
+  // Encoders (PDF §6 item 5: only attach if physically fitted)
+#if ENABLE_WHEEL_ENCODERS
   pinMode(PIN_ENCODER_LEFT, INPUT_PULLUP);
   pinMode(PIN_ENCODER_RIGHT, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT), isrEncoderLeft, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_RIGHT), isrEncoderRight, RISING);
+#endif
 
   // Launch Core 0 Sensor Task (Pinned to Core 0)
   xTaskCreatePinnedToCore(

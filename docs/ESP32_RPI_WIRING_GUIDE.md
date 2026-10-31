@@ -1,144 +1,229 @@
-# ESP32 & Raspberry Pi Hardware Wiring & Interface Guide
+# ESP32 & Raspberry Pi — Complete Hardware Wiring Guide
+### UAMC Techfest IIT Bombay | Based on `Wiring_and_Pin_Map.pdf`
 
-This guide details the exact electrical connections, level-shifting, pinouts, and communication protocols between the **Raspberry Pi** (High-Level Perception & Planning) and the **ESP32** (Real-Time Actuation & Sensor Fusion) for the **AML-Rover-V1** vehicle.
+> [!IMPORTANT]
+> This guide is derived directly from **`Wiring_and_Pin_Map.pdf`** (team hardware spec document). All pins, resistor values, and wiring instructions here are the authoritative source for this build.
 
 ---
 
-## 1. System Block Diagram & Power Architecture
+## 1. System Overview
 
 ```
-                       +-----------------------------+
-                       |    2S LiPo Battery          |
-                       |      (7.4V nominal)          |
-                       +--------------+--------------+
-                                      |
-                      [ 15A Master Kill Switch / E-Stop ]
-                                      |
-              +-----------------------+-----------------------+
-              |                                               |
-     +--------v--------+                             +--------v--------+
-     |   High-Current  |                             | Motor Driver    |
-     | 5V / 5A Buck IC |                             | | ESC (Electronic  ||
-     +--------+--------+                             +--------+--------+
-              |                                               |
-    +---------+---------+                            [ DC Drive Motor ]
-    |                   |
-+---v-------------+ +---v-------------+
-| Raspberry Pi 5  | |  ESP32 DevKit   |
-| (Perception/FSM)| | (Actuator/Sens) |
-+--------+--------+ +---+-------------+
-         |              |
-         +---[ UART ]---+
-       (115200 bps Serial)
+                    ┌────────────────────────────┐
+                    │   Power Bank (5V / 3A)     │
+                    └────────────┬───────────────┘
+                                 │ USB-C
+                                 ▼
+                        [ Raspberry Pi 5 ]
+                                 │
+                       USB-A to Micro-USB
+                       (115200 baud, /dev/ttyUSB0)
+                                 │
+                        [ ESP32 DevKit V1 ]
+                       /         |           \
+                  GPIO 18    GPIO 19      GPIO 5 / 35
+                  Servo      L298N ENA/ENB   HC-SR04
+                             GPIO 22/23       Sonar
+                             L298N IN1-4      
+
+┌──────────────────────────────────────────────────────┐
+│              3S LiPo (11.1V / 2200mAh)               │
+└──┬───────────────────────────────────────────────────┘
+   │
+   ▼ NC contact
+ [ E-Stop ] ── NO contact ──► GPIO 27 (+ 10kΩ to 3.3V)
+   │
+   ▼
+ [10A Fuse]
+   │
+   ├──► [7V Buck] ──► L298N +12V(VS) ──► TT Motors
+   │
+   └──► [5V Buck] ──► Servo (+) + 470-1000µF cap
+                  ──► HC-SR04 VCC
+                  ──► L298N +5V logic (5V jumper removed)
+
+All GNDs ──► Single common GND point
 ```
 
 > [!WARNING]
-> **Common Ground Requirement**: The Ground (GND) of the LiPo Battery, Buck Converter, Raspberry Pi, ESP32, and Motor Driver **MUST all be tied together**. Without a common ground reference, serial signals will suffer framing errors and sensor readings will drift.
+> **Common Ground is essential.** Every device — ESP32, L298N, both bucks, servo, HC-SR04 — must share one common GND point. A missing GND link causes random resets, servo jitter, and corrupt sonar data.
 
 ---
 
-## 2. Raspberry Pi $\leftrightarrow$ ESP32 Inter-Board Communication
+## 2. Pi 5 ↔ ESP32 Communication
 
-Communication runs over a high-speed, direct hardware UART link.
+The **only** link between Pi 5 and ESP32 is a USB-A to Micro-USB data cable. No UART GPIO wires needed.
 
-| Raspberry Pi Pin (40-Pin Header) | RPi Function | ESP32 Pin | ESP32 Function | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Pin 8 (GPIO 14)** | UART TXD | **GPIO 16** | Serial2 RXD | RPi transmits commands (`#CMD`) |
-| **Pin 10 (GPIO 15)**| UART RXD | **GPIO 17** | Serial2 TXD | RPi receives telemetry (`#TEL`) |
-| **Pin 6, 9, or 14** | GND | **GND** | GND | Common reference ground |
+| Raspberry Pi 5 | ESP32 | Note |
+|---------------|-------|------|
+| USB-A port | Micro-USB port | Data + ESP32 power |
+| — | GPIO 16 (RX2) | Unused when USB active |
+| — | GPIO 17 (TX2) | Unused when USB active |
 
-*Note: Alternatively, you can connect the ESP32 to the Raspberry Pi using a standard USB-to-MicroUSB cable (which appears as `/dev/ttyUSB0` or `/dev/ttyACM0` on the Pi).*
-
----
-
-## 3. ESP32 Pin Allocation & Sensor Wiring
-
-### A. Ultrasonic (HC-SR04) Wiring & 3.3V Voltage Divider
-HC-SR04 sensors run on **5V VCC**, meaning their **ECHO** pin outputs a **5V digital pulse**. Because the ESP32 GPIO pins are strictly **3.3V logic**, connecting 5V directly will destroy the GPIO port!
-
-Use a simple 2-resistor voltage divider on the ECHO line:
-$$\text{ECHO (5V)} \longrightarrow [1\text{ k}\Omega] \longrightarrow \text{ESP32 GPIO 35} \longrightarrow [2\text{ k}\Omega] \longrightarrow \text{GND}$$
-$$V_{out} = 5\text{V} \times \frac{2\text{k}\Omega}{1\text{k}\Omega + 2\text{k}\Omega} = 3.33\text{V} \quad \text{(Safe for ESP32)}$$
-
-| Sensor Position | Trig Pin (ESP32) | Echo Pin (ESP32) | Status | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Front Center** | **GPIO 5** | **GPIO 35** (via divider) | **Required (Round 1)** | Emergency Stop obstacle brake |
-| **Front Left** | **GPIO 5** | **GPIO 34** | Unused / Optional | Leave disconnected |
-| **Front Right** | **GPIO 5** | **GPIO 32** | Unused / Optional | Leave disconnected |
-| **Side (Parking)** | **GPIO 5** | **GPIO 33** | Unused / Optional | Leave disconnected |
-
-### B. Steering Servo & ESC (Electronic Speed Controller) Wiring
-
-| Device | Signal Description | ESP32 Pin | Signal Type |
-| :--- | :--- | :--- | :--- |
-| **Steering Servo (Micro Servo 9g)** | PWM Signal (Orange/Yellow wire) | **GPIO 18** | LEDC Channel 0 (50 Hz, 16-bit) |
-| **ESC Throttle** | PWM Throttle Signal (White wire) | **GPIO 19** | LEDC Channel 1 (50 Hz RC ESC servo signal) |
-| **ESC Ground** | Common Reference Ground (Black wire) | **GND** | Must share common ground with ESP32 |
-
-*(Note: The ESC is powered by the 7.4V 2S LiPo drive battery. The ESC's internal BEC provides 5V to the steering servo. The ESP32 is powered via USB from the Raspberry Pi 5).*
-
-### C. Wheel Encoders & Safety Kill Switch
-
-| Device | Pin Description | ESP32 Pin | Configuration |
-| :--- | :--- | :--- | :--- |
-| **Left Wheel Encoder** | Signal Output | **GPIO 25** | Hardware Interrupt (`RISING`), Pullup |
-| **Right Wheel Encoder** | Signal Output | **GPIO 26** | Hardware Interrupt (`RISING`), Pullup |
-| **Hardware E-Stop Button** | Emergency Kill Sense | **GPIO 27** | Digital Input (`INPUT_PULLUP`, Active LOW) |
+- Pi 5 sees ESP32 as **`/dev/ttyUSB0`** at **115200 baud**
+- Pi 5 powered **separately** from power bank → USB-C port
+- Do **NOT** also connect ESP32 5V pin when using USB power
 
 ---
 
-## 4. Raspberry Pi Setup Instructions
+## 3. Complete Pin Assignment (per PDF §3)
 
-### 1. Enable Hardware Serial on Raspberry Pi
-By default, the Raspberry Pi uses its primary UART for the Linux Bluetooth controller. To redirect it to GPIO 14/15:
+### A. Motor Control — L298N H-Bridge
 
-1. Open `/boot/firmware/config.txt` (or `/boot/config.txt`):
-   ```bash
-   sudo nano /boot/firmware/config.txt
-   ```
-2. Add or ensure the following lines exist:
-   ```ini
-   enable_uart=1
-   dtoverlay=disable-bt
-   ```
-3. Disable Linux serial console on the port:
-   ```bash
-   sudo systemctl stop serial-getty@ttyAMA0.service
-   sudo systemctl disable serial-getty@ttyAMA0.service
-   ```
-4. Reboot the Raspberry Pi:
-   ```bash
-   sudo reboot
-   ```
-5. The direct serial port is now available at `/dev/ttyAMA0` (or symlinked to `/dev/serial0`).
+> [!IMPORTANT]
+> `USE_ESC_MOTOR_DRIVER` must be set to **`0`** in `esp32_config.h` for L298N mode.
 
-### 2. Grant Serial Permissions
-Ensure the current user has access to dialout:
-```bash
-sudo usermod -a -G dialout $USER
+| ESP32 GPIO | L298N Terminal | Direction | Firmware Name | Notes |
+|-----------|----------------|-----------|---------------|-------|
+| **GPIO 19** | ENA **and** ENB (tied together) | PWM out, 20 kHz | `PIN_MOTOR_PWM` | Remove ENA/ENB jumpers from board first |
+| **GPIO 22** | IN1 **and** IN3 (tied together) | Digital out | `PIN_MOTOR_DIR_A` | HIGH = both motors forward |
+| **GPIO 23** | IN2 **and** IN4 (tied together) | Digital out | `PIN_MOTOR_DIR_B` | LOW = both motors forward |
+
+**L298N Power Rails:**
+
+| L298N Terminal | Source | Note |
+|---------------|--------|------|
+| +12V (VS) | 7 V buck output (+) | Motor supply — set buck to 7V with meter |
+| GND | Common GND | |
+| +5V | 5 V buck output (+) | **Remove** the 5V jumper on L298N board |
+
+**Motor Outputs:**
+
+| L298N Terminal | Goes To |
+|---------------|---------|
+| OUT1 / OUT2 | Left TT gear motor (two wires) |
+| OUT3 / OUT4 | Right TT gear motor (two wires) |
+
+> [!TIP]
+> If one motor turns backwards, **swap that motor's own two output wires** at the L298N OUT terminals. Do not change the GPIO logic.
+
+**Direction truth table:**
+```
+Forward:  GPIO22 (DIR_A) = HIGH,  GPIO23 (DIR_B) = LOW
+Reverse:  GPIO22 (DIR_A) = LOW,   GPIO23 (DIR_B) = HIGH
+Stop:     GPIO19 (PWM)   = 0
+```
+
+### B. Steering Servo (SG90 / MG90S)
+
+| ESP32 GPIO | Servo Wire | Source | Notes |
+|-----------|-----------|--------|-------|
+| **GPIO 18** | Signal (yellow / orange) | — | 50 Hz PWM, 1000–2000 µs; mid = 1500 µs |
+| — | Red (+) | 5 V buck (+) | **+ 470–1000 µF cap across this rail** |
+| GND | Brown / Black (−) | Common GND | |
+
+> [!CAUTION]
+> Never power servo from ESP32 3.3 V or 5 V pin — it will cause resets under load. Always use the 5 V buck with the capacitor.
+
+### C. Ultrasonic Sensor HC-SR04 (Front Centre Only)
+
+**Voltage divider (required — HC-SR04 ECHO outputs 5 V, ESP32 max is 3.3 V):**
+
+```
+HC-SR04 ECHO (5V) ──[1 kΩ]──┬──► ESP32 GPIO 35
+                              │
+                           [2 kΩ]
+                              │
+                             GND
+
+Result: V_GPIO35 = 5V × 2000/(1000+2000) = 3.33V ✅
+```
+
+| ESP32 GPIO | HC-SR04 Pin | Notes |
+|-----------|-------------|-------|
+| **GPIO 5** | TRIG | Direct connection, 10 µs pulse out |
+| **GPIO 35** | ECHO (via 1kΩ/2kΩ divider) | Input-only pin — must use divider |
+| — | VCC | 5 V buck (+) |
+| GND | GND | Common GND |
+
+**Unused sonar pins — leave completely unconnected:**
+
+| GPIO | Firmware Name | Status |
+|------|--------------|--------|
+| 34 | `PIN_US_ECHO_LEFT` | No sensor — leave floating |
+| 32 | `PIN_US_ECHO_RIGHT` | No sensor — leave floating |
+| 33 | `PIN_US_ECHO_SIDE` | No sensor — leave floating |
+
+### D. E-Stop Button (22 mm latching, 2-contact)
+
+The E-stop has **two separate contacts** — wire them differently:
+
+| Contact | Wired To | Effect When Pressed |
+|---------|----------|---------------------|
+| **NC (Normally Closed)** | Battery (+) line, before the 10A fuse | **Opens** → cuts ALL motor power |
+| **NO (Normally Open)** | GPIO 27 to GND; 10 kΩ from GPIO 27 to 3.3V | **Closes** → pulls GPIO 27 LOW |
+
+ESP32 reads `PIN_ESTOP_INPUT` (GPIO 27):
+- **HIGH** = E-stop released → normal operation
+- **LOW** = E-stop pressed → firmware emergency stop
+
+### E. Unused Encoder Pins
+
+| GPIO | Firmware Name | Status |
+|------|--------------|--------|
+| 25 | `PIN_ENCODER_LEFT` | No encoder — leave **unconnected** |
+| 26 | `PIN_ENCODER_RIGHT` | No encoder — leave **unconnected** |
+
+---
+
+## 4. Firmware Settings to Apply
+
+Open `firmware/esp32_firmware/esp32_config.h` and verify:
+
+```c
+#define USE_ESC_MOTOR_DRIVER     0      // ← MUST BE 0 for L298N
+
+#define PIN_STEER_SERVO          18     // Servo signal
+#define PIN_MOTOR_PWM            19     // L298N ENA+ENB
+#define PIN_MOTOR_DIR_A          22     // L298N IN1+IN3
+#define PIN_MOTOR_DIR_B          23     // L298N IN2+IN4
+#define PIN_US_TRIG              5      // HC-SR04 Trig
+#define PIN_US_ECHO_CENTER       35     // HC-SR04 Echo (via divider)
+#define PIN_ESTOP_INPUT          27     // E-Stop
+
+#define MOTOR_LEDC_FREQ          20000  // 20 kHz PWM for L298N
+#define MOTOR_MIN_START_PWM      35     // Min PWM to move TT motors
+#define MOTOR_MAX_SAFE_PWM       220    // Max PWM cap
+```
+
+Open `config/rpi_tuning.py` and verify:
+
+```python
+wheelbase_m = 0.170    # 17.0 cm — THIS car (NOT 0.260 — that was a different car)
+serial_port = "/dev/ttyUSB0"
+baudrate    = 115200
 ```
 
 ---
 
-## 5. Packet Communication Protocol Specification
+## 5. Serial Packet Protocol
 
-### Command Packet (Raspberry Pi $\rightarrow$ ESP32)
-Sent at 30 Hz – 50 Hz from `uamc/hal/serial_bridge.py`:
+### Command Packet (Pi → ESP32, sent at 30 Hz)
 ```
 #CMD,<steer>,<throttle>,<estop>*
 ```
-- `<steer>`: Floating point in range `[-1.000, +1.000]` (`-1.0` = full left $28^\circ$, `+1.0` = full right $28^\circ$, `0.0` = straight ahead).
-- `<throttle>`: Floating point in range `[-1.000, +1.000]` (`+0.5` = forward cruising, `-0.5` = active dynamic braking, `0.0` = neutral/idle).
-- `<estop>`: Integer flag (`0` = normal operation, `1` = instant emergency stop).
-- *Example*: `#CMD,-0.125,0.450,0*\n`
+- `<steer>`: −1.0 (full left) to +1.0 (full right), 0.0 = straight
+- `<throttle>`: −1.0 (reverse) to +1.0 (forward), 0.0 = stop
+- `<estop>`: 0 = normal, 1 = emergency stop
 
-### Telemetry Packet (ESP32 $\rightarrow$ Raspberry Pi)
-Sent at 30 Hz from Core 1 of the ESP32:
+### Telemetry Packet (ESP32 → Pi, sent at 30 Hz)
 ```
 #TEL,<us_l>,<us_c>,<us_r>,<us_s>,<enc_l>,<enc_r>,<yaw>,<estop>*
 ```
-- `<us_l>`, `<us_c>`, `<us_r>`, `<us_s>`: Distances in meters with 2 decimal precision (e.g. `0.85,1.20,0.92,0.18`).
-- `<enc_l>`, `<enc_r>`: Cumulative encoder tick count since boot.
-- `<yaw>`: Heading yaw angle in degrees.
-- `<estop>`: Hardware kill switch status (`0` = safe, `1` = triggered).
-- *Example*: `#TEL,1.15,1.20,1.18,0.18,450,452,0.0,0*\n`
+- `<us_c>` is the only live sonar reading; others will be at max range (no sensor)
+- `<enc_l>`, `<enc_r>`: 0 (no encoders fitted)
+- `<yaw>`: 0.0 (no IMU fitted)
+
+---
+
+## 6. Fault Finder (per PDF §9)
+
+| Symptom | Check |
+|---------|-------|
+| Motors hum but don't turn | ENA/ENB jumpers still on L298N; or PWM < `MOTOR_MIN_START_PWM` |
+| Motors very hot | 7V buck too high — re-measure and re-adjust before running |
+| Servo jitters | Missing 470–1000 µF capacitor; or servo on ESP32 pin, not buck |
+| Sonar reads 0 or 2.5m always | ECHO divider missing (5V into GPIO); TRIG and ECHO swapped |
+| ESP32 resets at motor start | GND not common; or 5V buck sagging — check capacitor |
+| Car moves after E-stop | NC contact not in battery line; or NO/NC contacts swapped at GPIO 27 |
+| `/dev/ttyUSB0` not found | Charge-only USB cable; or ESP32 not powered |

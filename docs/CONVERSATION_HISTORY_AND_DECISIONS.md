@@ -17,13 +17,13 @@ Following the inspection of the user's handwritten hardware list and team invent
 | **Raspberry Pi 5** | ✅ YES | High-level brain (perception, planning, pure pursuit, YOLO/PilotNet) | **Mandatory** | Fully supported in `uamc/` stack |
 | **MicroSD Card** | ✅ YES | OS & code storage (Raspberry Pi OS 64-bit) | **Mandatory** | Setup scripts prepared |
 | **Camera Module / USB Cam** | ✅ YES | Vision input (lane detection, traffic signs, lights) | **Mandatory** | Implemented in `uamc/hal/camera_interface.py` |
-| **ESP32 DevKit v1** | ✅ YES *(Confirmed)* | Low-level real-time controller (PWM for servo & ESC, sensor read) | **Mandatory** | Implemented in `firmware/esp32_firmware/` |
+| **ESP32 DevKit v1** | ✅ YES *(Confirmed)* | Low-level real-time controller (PWM for servo & L298N, sensor read) | **Mandatory** | Implemented in `firmware/esp32_firmware/` |
 | **USB-A to Micro-USB Cable** | ✅ YES *(Confirmed)* | Data bridge between RPi 5 and ESP32 (UART over USB) | **Mandatory** | Implemented in `uamc/hal/serial_bridge.py` |
-| **1/10 On-Road RC Chassis** | ✅ YES | Vehicle physical platform | **Mandatory** | Geometry tuned in `config/rpi_tuning.py` |
-| **Steering Servo** | ✅ YES | Front wheel steering via 50 Hz PWM | **Mandatory** | Tuned in `firmware/esp32_firmware/esp32_config.h` |
-| **Drive Motor + ESC** | ✅ YES | Propulsion via Electronic Speed Controller (PWM 1000–2000 µs) | **Mandatory** | Native ESC PWM support integrated |
-| **Ultrasonic Sensors (HC-SR04)** | ✅ YES | Emergency stop and obstacle proximity sensing | **Mandatory** | Filtering in `ultrasonic_filter.h` |
-| **Rechargeable Battery + Charger** | ✅ YES | Power source (LiPo 7.4V 2S / NiMH) | **Mandatory** | Powers ESC, BEC powers servo |
+| **1/10 Chassis (170mm wheelbase)** | ✅ YES | Vehicle physical platform (170 mm wheelbase per PDF §7) | **Mandatory** | Geometry tuned in `config/rpi_tuning.py` |
+| **Steering Servo (SG90/MG90S)** | ✅ YES | Front wheel steering via 50 Hz PWM | **Mandatory** | Tuned in `firmware/esp32_firmware/esp32_config.h` |
+| **Drive Motors + L298N** | ✅ YES | 2× TT Gear Motors driven by L298N H-bridge (20 kHz PWM on GPIO 19, DIR on GPIO 22/23) | **Mandatory** | `USE_ESC_MOTOR_DRIVER = 0` |
+| **Ultrasonic Sensor (HC-SR04)** | ✅ YES | Single front-center emergency stop obstacle sensor | **Mandatory** | Filtering in `ultrasonic_filter.h` |
+| **3S LiPo 2200 mAh + Buck Converters** | ✅ YES | Power source: 11.1V pack + 7V Buck (motors) + 5V Buck (logic/servo) | **Mandatory** | Dual buck regulation per PDF §2 |
 | **Jumper Wires (M-M, M-F, F-F)** | ✅ YES *(Confirmed)* | Inter-module connections | **Mandatory** | Pinout specified in wiring guide |
 | **MPU6050 IMU** | ❌ NO (Deferred) | Rollover / high-G collision detection | **Optional (Round 1)** | Fallback values active (`0, 0, 1G`), won't block run |
 | **Logic Level Shifter (3.3V ↔ 5V)** | ❌ NO (Deferred) | HC-SR04 Echo 5V protection | **Optional (Round 1)** | Safe for short testing runs without shifter |
@@ -36,7 +36,7 @@ Following the inspection of the user's handwritten hardware list and team invent
 * **User Query:** How are Raspberry Pi and ESP32 separated into distinct blocks, and what are the things integrated/tuned in each block?
 * **Resolution & Decision:**
   * **Raspberry Pi 5 (High-Level Brain):** Responsible for heavy compute tasks: Camera input, Inverse Perspective Mapping (IPM) lane detection, ONNX object detection (YOLOv8n / YOLO11n / MobileNetV1-SSD), traffic light HSV classification, behavior FSM, and Pure Pursuit path tracking. Tuned via `config/rpi_tuning.py`.
-  * **ESP32 (Low-Level Microcontroller):** Dual-core FreeRTOS handling millisecond-critical hardware control: Core 0 reads ultrasonic sensors and filters noise; Core 1 handles UART packets from the Pi, outputs 50 Hz PWM to the steering servo and ESC, and manages the 200 ms emergency stop watchdog. Tuned via `firmware/esp32_firmware/esp32_config.h`.
+  * **ESP32 (Low-Level Microcontroller):** Dual-core FreeRTOS handling millisecond-critical hardware control: Core 0 reads the front-center ultrasonic sensor and filters noise; Core 1 handles serial packets from the Pi, outputs 50 Hz PWM to the steering servo and 20 kHz PWM to the L298N motor driver, and manages the emergency stop watchdog. Tuned via `firmware/esp32_firmware/esp32_config.h`.
 
 ### Question 2 & 3: Hardware and Software Connection between Pi and ESP32
 * **User Query:** What is the physical connection between Pi and ESP32, and is there any internal software link?
@@ -71,7 +71,7 @@ Following the inspection of the user's handwritten hardware list and team invent
 ### Question 9: Analysis of Handwritten Hardware Checklist
 * **User Query:** Inspect handwritten note showing list of components and check if any additional software or hardware is needed.
 * **Findings from Image:**
-  1. *Identified ESC (Electronic Speed Controller)* instead of simple L298N motor driver. ESC operates on standard servo PWM (1000–2000 µs pulse width). Firmware was updated accordingly.
+  1. *Hardware locked to `Wiring_and_Pin_Map.pdf` spec*: L298N dual H-bridge motor driver (20 kHz PWM on GPIO 19, DIR on GPIO 22/23), 2× TT gear motors (3–9V), 3S LiPo 2200 mAh, 7V buck (motors) and 5V buck (servo/logic). Micro Servo 9g on GPIO 18 (50 Hz). Single front-center HC-SR04 sonar (Trig GPIO 5, Echo GPIO 35 via 1k/2k divider). E-stop on GPIO 27 (active-LOW). Wheelbase set to 170 mm.
   2. *Identified Raspberry Pi 5*. Validated that Pi 5 delivers 2.5x higher ONNX inference speeds compared to Pi 4B. Noted that CSI camera cables for Pi 5 use a 22-pin pitch, or a USB webcam can be used directly without adapters.
 
 ### Question 10 & 11: Scope for Round 1 Selection (IMU and Level Shifter)
@@ -95,7 +95,7 @@ Rohith45-ch/iitb/
 ├── firmware/
 │   └── esp32_firmware/
 │       ├── esp32_vehicle_controller.ino # Dual-core FreeRTOS vehicle controller
-│       ├── esp32_config.h            # Pinouts, ESC neutral/max, servo trims
+│       ├── esp32_config.h            # Pinouts, L298N PWM/deadband, servo trims
 │       ├── ultrasonic_filter.h       # Median-of-5 + EMA outlier filter
 │       └── tinyml_motion.h           # Collision & rollover classifier
 ├── models/
@@ -122,12 +122,14 @@ Rohith45-ch/iitb/
 
 ## 🏁 4. Next Immediate Steps When Hardware Arrives
 
-1. **Step 1:** Flash MicroSD card using Raspberry Pi Imager (OS: Raspberry Pi OS 64-bit, enable SSH).
+1. **Step 1:** Flash MicroSD card using Raspberry Pi Imager (OS: Raspberry Pi OS 64-bit, enable SSH) [DONE].
 2. **Step 2:** Plug ESP32 into Laptop via USB, open `firmware/esp32_firmware/esp32_vehicle_controller.ino` in Arduino IDE, and hit **Upload**.
 3. **Step 3:** Mount electronics on chassis and connect:
-   * ESP32 Pin 18 → Steering Servo Signal
-   * ESP32 Pin 19 → ESC Signal
-   * ESP32 Pin 5 (Trig) & Pin 35 (Echo) → Single Front-Center Ultrasonic Sensor
+   * ESP32 Pin 18 → Steering Servo Signal (SG90/MG90S)
+   * ESP32 Pin 19 → L298N ENA + ENB (20 kHz PWM speed)
+   * ESP32 Pin 22 & 23 → L298N IN1+IN3 & IN2+IN4 (Direction)
+   * ESP32 Pin 5 (Trig) & Pin 35 (Echo via 1k/2k divider) → Single Front-Center Ultrasonic Sensor
+   * ESP32 Pin 27 → E-Stop NO contact to GND (active-LOW)
 4. **Step 4:** Connect ESP32 to Raspberry Pi via USB cable.
 5. **Step 5:** Boot Pi, SSH in, and run:
    ```bash
