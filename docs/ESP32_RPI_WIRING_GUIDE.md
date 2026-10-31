@@ -71,7 +71,7 @@ $$V_{out} = 5\text{V} \times \frac{2\text{k}\Omega}{1\text{k}\Omega + 2\text{k}\
 
 | Device | Signal Description | ESP32 Pin | Signal Type |
 | :--- | :--- | :--- | :--- |
-| **Steering Servo (MG995 / 9g)** | PWM Signal (White/Orange wire) | **GPIO 18** | LEDC Channel 0 (50 Hz, 16-bit) |
+| **Steering Servo (Micro Servo 9g)** | PWM Signal (Orange/Yellow wire) | **GPIO 18** | LEDC Channel 0 (50 Hz, 16-bit) |
 | **ESC Throttle** | PWM Throttle Signal (White wire) | **GPIO 19** | LEDC Channel 1 (50 Hz RC ESC servo signal) |
 | **ESC Ground** | Common Reference Ground (Black wire) | **GND** | Must share common ground with ESP32 |
 

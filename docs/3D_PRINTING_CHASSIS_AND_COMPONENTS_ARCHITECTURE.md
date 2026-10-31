@@ -3,7 +3,7 @@
 **Repository:** [Rohith45-ch/iitb](https://github.com/Rohith45-ch/iitb)  
 **Document:** `docs/3D_PRINTING_CHASSIS_AND_COMPONENTS_ARCHITECTURE.md`  
 **Date:** October 31, 2026  
-**Hardware Revision:** Final Confirmed Hardware Inventory (9g Micro Servo + 2500–3000 mAh LiPo Powerbank + SmartElex RLS-06 + RPi Cam Rev 1.3 + 400-Point Breadboard)
+**Hardware Revision:** Final Confirmed Hardware Inventory (Micro Servo 9g + 2500–3500 mAh LiPo + SmartElex RLS-06 + RPi Cam Rev 1.3 + 400-Point Breadboard)
 
 ---
 
@@ -19,9 +19,9 @@ This architecture document provides the exact mechanical dimensions, mounting pa
 | **Vision Sensor** | Raspberry Pi Camera Rev 1.3 (OV5647 5MP) | Layer 3 (Elevated Mast) | 12–15 cm elevation, 15°–20° tilt for path & sign perception |
 | **Low-Level Controller** | ESP32 DevKit V1 (30-pin) | Layer 1 (on Breadboard) | 50 Hz PWM actuator control, ultrasonic filtering, watchdog |
 | **Ground Line Sensor** | SmartElex RLS-06 (6-IR Array) | Layer 0 (Under-Nose) | 5–10 mm ground clearance for millisecond lane recovery |
-| **Steering Actuator** | MG995 Standard Servo (Recommended) OR 9g Micro Servo | Layer 0 (Front Center) | Front wheel Ackermann steering linkage via 50 Hz PWM |
+| **Steering Actuator** | Micro Servo 9g (SG90 / MG90S) | Layer 0 (Front Center) | Front wheel Ackermann steering linkage via 50 Hz PWM |
 | **Propulsion & ESC** | RC Brushed/Brushless Motor + ESC | Layer 0 / Layer 1 | 50 Hz ESC throttle control (1000–2000 µs pulse) |
-| **Brain Power Supply** | 2500–3000 mAh LiPo Power Bank (5V/3A) | Layer 1 (Mid Deck) | Dedicated isolated power for Raspberry Pi 5 |
+| **Brain Power Supply** | 2500–3500 mAh LiPo Power Bank (5V/3A) | Layer 1 (Mid Deck) | Dedicated isolated power for Raspberry Pi 5 |
 | **Motor Power Supply** | 7.4V 2S LiPo / 7.2V NiMH Battery | Layer 0 (Chassis floor)| High-discharge power for ESC, motor, and servo BEC |
 | **Proximity Sonar**      | 1× HC-SR04 Ultrasonic Module         | Layer 2 Front Bumper | Center (0°, GPIO 35) for emergency stop |
 | **Wiring & Power Rails** | 400 Tie-Point Solderless Breadboard | Layer 1 (Mid Deck) | ESP32 carrier, voltage dividers, sensor distribution |
@@ -41,14 +41,13 @@ Use the exact millimeter dimensions below for 3D modeling in Fusion 360, SolidWo
 | Component | Physical Dimensions (L × W × H) | Mounting Hole Pattern | Fastener Size | CAD Modeling Tolerance / Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | **SmartElex RLS-06 (6-IR Array)** | 135.0 × 20.0 × 12.0 mm | 2 holes: **125.0 mm** apart | M3 screws + nuts | Ground clearance: **5.0 – 10.0 mm** from track surface. (Optional add-on). |
-| **MG995 Standard Servo (Recommended)**| 40.7 × 19.7 × 42.9 mm (ear span: 54.0 mm) | 4 holes: **49.5 × 10.0 mm** rectangle | M3 screws | Pocket cutout: **41.5 × 20.5 mm**, depth 38.0 mm. Fits standard 1/10 chassis. |
 | **Micro Servo 9g (SG90 / MG90S)**| 23.0 × 12.2 × 29.0 mm (ear span: 32.5 mm) | 2 holes: **28.0 mm** center-to-center | M2 or M2.5 screws | Pocket cutout: **23.5 × 12.5 mm**, depth 18.0 mm. |
 | **Raspberry Pi Cam Rev 1.3** | 25.0 × 24.0 × 9.0 mm (lens Ø 8.0 mm) | 4 holes: **21.0 × 12.5 mm** rectangle | M2 nylon screws | Lens hole: Ø 8.5 mm; ribbon slot: 17.0 × 2.0 mm. |
 | **400-Point Breadboard** | 82.0 × 55.0 × 9.0 mm | Flat base (adhesive tape back) | Snap-fit border / lip | Recessed deck tray: **83.5 × 56.5 × 3.0 mm**. |
 | **ESP32 DevKit V1 (30-pin)** | 52.0 × 28.5 × 13.0 mm | 2.54 mm header pitch (width 25.4 mm)| Plugs into breadboard | Straddles center channel of 400-pt breadboard. |
-| **2500–3000 mAh LiPo Power Bank**| ~96.0 × 63.0 × 15.0 mm | Flat enclosure (no screw holes) | 2× 15 mm Velcro straps | Bay: **100.0 × 65.0 mm** with strap slots (18 × 3 mm). |
+| **2500–3500 mAh LiPo Power Bank**| ~96.0 × 65.0 × 16.0 mm | Flat enclosure (no screw holes) | 2× 15 mm Velcro straps | Bay: **100.0 × 68.0 mm** with strap slots (18 × 3 mm). |
 | **Raspberry Pi 5** | 85.0 × 56.0 × 17.0 mm (24 mm w/ Cooler) | 4 holes: **58.0 × 49.0 mm** rectangle | M2.5 × 10 mm standoffs | Hole diameter: **Ø 2.8 mm**. Leave SD slot accessible. |
-| **HC-SR04 Ultrasonic Modules** | 45.0 × 20.0 × 15.0 mm (cylinders: Ø 16.0 mm)| Transducer center spacing: **26.0 mm**| Front friction fit / clip | Cut 2 barrel holes: **Ø 16.4 mm** spaced 26.0 mm apart. |
+| **HC-SR04 Ultrasonic Module** | 45.0 × 20.0 × 15.0 mm (cylinders: Ø 16.0 mm)| Transducer center spacing: **26.0 mm**| Front friction fit / clip | Cut 2 barrel holes: **Ø 16.4 mm** spaced 26.0 mm apart. |
 | **RC ESC** | ~42.0 × 34.0 × 21.0 mm | Flat base with heatsink top | Zip-ties or 3M VHB tape| Cut honeycomb ventilation under heatsink area. |
 | **7.4V Motor LiPo Battery** | ~135.0 × 45.0 × 24.0 mm | Battery cradle | 20 mm Velcro cinch strap| Centerline bottom deck tray: **140.0 × 48.0 mm**. |
 
@@ -76,7 +75,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
   ┌─────────────────────────────────────────────────────────────────────────────────┐
   │ LAYER 1: POWER & CONTROLLER DECK (Middle Plate)                                 │
   │ • 400-Point Breadboard with ESP32 DevKit V1 seated                              │
-  │ • 2500–3000 mAh LiPo Power Bank (dedicated Raspberry Pi 5 power)                │
+  │ • 2500–3500 mAh LiPo Power Bank (dedicated Raspberry Pi 5 power)                │
   │ • RC ESC Tray with bottom airflow grill                                         │
   └────────────────────────────────────────┬────────────────────────────────────────┘
                    ▲                       │ (4x M3 × 30mm Hex Standoffs)
@@ -99,14 +98,10 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
    * Design two drop-down lugs projecting downwards beneath the front nose.
    * Hole spacing: **125.0 mm** (M3 hardware).
    * Ensure that when the car wheels rest on the floor, the bottom face of the RLS-06 PCB sits exactly **6 mm to 8 mm above the ground**.
-2. **Steering Servo Pocket (Dual-Fit for MG995 or Micro 9g):**
+2. **Micro Servo 9g Steering Pocket:**
    * Position on vehicle centerline directly above or behind the front steering tie-rod axis.
-   * **For MG995 Standard Servo (Recommended):**
-     * Pocket dimensions: **41.5 mm length × 20.5 mm width × 38.0 mm depth**.
-     * Mounting holes: 4× **Ø 3.2 mm** holes arranged in a **49.5 mm × 10.0 mm** rectangle.
-   * **For Micro 9g Servo (Alternative):**
-     * Pocket dimensions: **23.5 mm length × 12.5 mm width × 18.0 mm depth**.
-     * Flange ledge: 2.0 mm wide with two pilot holes of **Ø 2.2 mm** spaced **28.0 mm** apart.
+   * Pocket dimensions: **23.5 mm length × 12.5 mm width × 18.0 mm depth**.
+   * Flange ledge: 2.0 mm wide with two pilot holes of **Ø 2.2 mm** spaced **28.0 mm** apart (M2 screws).
    * Ensure the servo arm moves ±28° with zero mechanical obstruction against chassis walls.
 3. **Drive Battery Well:**
    * Centerline tray: **140 mm × 48 mm** with 4 mm raised perimeter lips and twin slots for a 20 mm Velcro strap.
@@ -162,7 +157,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
 
 ```
                      ┌──────────────────────────────────┐
-                     │   2500–3000 mAh LiPo Powerbank   │
+                     │   2500–3500 mAh LiPo Powerbank   │
                      └────────────────┬─────────────────┘
                                       │ 5V / 3A (USB-C)
                                       ▼
@@ -176,7 +171,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
                ▼                                             ▼
      [ ESP32 DevKit V1 ]                          [ RPi Cam Rev 1.3 ]
   (on 400-pt Breadboard)                         (on Layer 3 Mast)
-   ├── Pin 18 (PWM 50Hz) ──────► Steering Servo (MG995 or 9g Signal)
+   ├── Pin 18 (PWM 50Hz) ──────► Micro Servo 9g (Signal)
    ├── Pin 19 (PWM 50Hz) ──────► ESC Throttle (Signal)
    ├── Pin 5  (Trigger)  ──────► HC-SR04 Center Sonar Trig
    ├── Pin 35 (Echo Center)◄──── HC-SR04 Center Sonar Echo (via 1k/2k Divider)
@@ -186,8 +181,8 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
 
 > [!TIP]
 > **Power Isolation Best Practice:**
-> * The **Raspberry Pi 5** is powered exclusively by the **2500–3000 mAh LiPo Power Bank**.
-> * The **Drive Motor, ESC, and Steering Servo** are powered by the **7.4V 2S LiPo Battery** (servo power comes from the ESC's 5V/6V BEC).
+> * The **Raspberry Pi 5** is powered exclusively by the **2500–3500 mAh LiPo Power Bank**.
+> * The **Drive Motor, ESC, and Micro Servo 9g** are powered by the **7.4V 2S LiPo Battery** (servo power comes from the ESC's 5V/6V BEC).
 > * The **ESP32** is powered directly from the Raspberry Pi 5 via the USB data cable.
 > * Connect all system grounds (**GND**) together on the 400-point breadboard negative rail.
 
@@ -220,7 +215,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
    * Mount the Layer 1 plate onto the M3 standoffs.
    * Adhere the 400-point breadboard into its recessed tray and insert the ESP32 DevKit V1 across the central channel.
    * Fasten the ESC in its bay using zip-ties or 3M foam tape.
-   * Strap the 2500–3000 mAh LiPo power bank into its bay.
+   * Strap the 2500–3500 mAh LiPo power bank into its bay.
    * Screw 4× M3 × 35 mm hex standoffs into the deck.
 
 3. **Step 3 — Compute & Vision Deck (Layer 2 & 3):**

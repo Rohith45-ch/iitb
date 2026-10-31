@@ -14,11 +14,11 @@
 |---|-----------|----------------------|-------|
 | ✅ | Compatible Camera Module | **YES** — fully coded | Use USB webcam OR Pi Camera with CSI adapter |
 | ✅ | Ultrasonic Distance Sensors (1–2 units) | **YES** — fully coded | HC-SR04 recommended |
-| ✅ | Rechargeable Battery + Charger | No software needed | 7.4V 2S LiPo recommended |
-| ⚠️ | **Raspberry Pi 5** | **YES (minor Pi 5 tweak needed)** | Our code was for Pi 4B — 1 line fix |
-| ✅ | MicroSD Card | No software needed | Flash Raspberry Pi OS on it |
+| ✅ | Rechargeable Battery + Charger | No software needed | 7.4V 2S LiPo (Motor) + 2500–3500 mAh LiPo (Pi 5) |
+| ⚠️ | **Raspberry Pi 5** | **YES (fully installed & tested)** | Cloned to ~/iitb, running on 10.94.129.58 |
+| ✅ | MicroSD Card | No software needed | 64GB Samsung Evo Plus with Pi OS 64-bit |
 | ✅ | 1/10-scale On-Road RC Chassis | **YES** — geometry coded | All params in `rpi_tuning.py` |
-| ✅ | Steering Servo | **YES** — fully coded | ESC-style PWM in `esp32_config.h` |
+| ✅ | Steering Servo (Micro Servo 9g) | **YES** — fully coded | 50 Hz PWM on Pin 18 in `esp32_config.h` |
 | ✅ | Drive Motor (compatible with chassis) | **YES** — fully coded | |
 | ✅ | **Electronic Speed Controller (ESC)** | **YES** — firmware updated for ESC** | Single PWM wire like servo |
 
