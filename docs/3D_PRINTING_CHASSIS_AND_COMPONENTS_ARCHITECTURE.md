@@ -173,10 +173,8 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
   (on 400-pt Breadboard)                         (on Layer 3 Mast)
    ├── Pin 18 (PWM 50Hz) ──────► 9g Micro Servo (Signal)
    ├── Pin 19 (PWM 50Hz) ──────► ESC Throttle (Signal)
-   ├── Pin 5  (Trigger)  ──────► HC-SR04 Sonar Trig (Shared)
-   ├── Pin 34 (Echo Left) ◄───── HC-SR04 Left Echo (via 1k/2k Divider)
-   ├── Pin 35 (Echo Center)◄──── HC-SR04 Center Echo (via 1k/2k Divider)
-   ├── Pin 32 (Echo Right) ◄──── HC-SR04 Right Echo (via 1k/2k Divider)
+   ├── Pin 5  (Trigger)  ──────► HC-SR04 Center Sonar Trig
+   ├── Pin 35 (Echo Center)◄──── HC-SR04 Center Sonar Echo (via 1k/2k Divider)
    └── Pins 13, 14, 27, └───◄─── SmartElex RLS-06 (Digital Outs 1–6)
        21, 22, 23 (GPIO)
 ```
@@ -221,7 +219,7 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
    * Screw 4× M3 × 35 mm hex standoffs into the deck.
 
 3. **Step 3 — Compute & Vision Deck (Layer 2 & 3):**
-   * Press-fit the 3× HC-SR04 ultrasonic sensors into the front bumper pods.
+   * Press-fit the single center HC-SR04 ultrasonic sensor into the front bumper pod.
    * Bolt the Raspberry Pi 5 onto the 10 mm M2.5 standoffs.
    * Attach the Camera Mast (Layer 3) to the front of Layer 2.
    * Secure the Raspberry Pi Camera Rev 1.3 to the mast using 4× M2 nylon screws at an 18° downward tilt.
