@@ -19,7 +19,7 @@ This architecture document provides the exact mechanical dimensions, mounting pa
 | **Vision Sensor** | Raspberry Pi Camera Rev 1.3 (OV5647 5MP) | Layer 3 (Elevated Mast) | 12–15 cm elevation, 15°–20° tilt for path & sign perception |
 | **Low-Level Controller** | ESP32 DevKit V1 (30-pin) | Layer 1 (on Breadboard) | 50 Hz PWM actuator control, ultrasonic filtering, watchdog |
 | **Ground Line Sensor** | SmartElex RLS-06 (6-IR Array) | Layer 0 (Under-Nose) | 5–10 mm ground clearance for millisecond lane recovery |
-| **Steering Actuator** | Micro Servo 9g (SG90 / MG90S) | Layer 0 (Front Center) | Front wheel Ackermann steering linkage via 50 Hz PWM |
+| **Steering Actuator** | MG995 Standard Servo (Recommended) OR 9g Micro Servo | Layer 0 (Front Center) | Front wheel Ackermann steering linkage via 50 Hz PWM |
 | **Propulsion & ESC** | RC Brushed/Brushless Motor + ESC | Layer 0 / Layer 1 | 50 Hz ESC throttle control (1000–2000 µs pulse) |
 | **Brain Power Supply** | 2500–3000 mAh LiPo Power Bank (5V/3A) | Layer 1 (Mid Deck) | Dedicated isolated power for Raspberry Pi 5 |
 | **Motor Power Supply** | 7.4V 2S LiPo / 7.2V NiMH Battery | Layer 0 (Chassis floor)| High-discharge power for ESC, motor, and servo BEC |
@@ -40,7 +40,8 @@ Use the exact millimeter dimensions below for 3D modeling in Fusion 360, SolidWo
 
 | Component | Physical Dimensions (L × W × H) | Mounting Hole Pattern | Fastener Size | CAD Modeling Tolerance / Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| **SmartElex RLS-06 (6-IR Array)** | 135.0 × 20.0 × 12.0 mm | 2 holes: **125.0 mm** apart | M3 screws + nuts | Ground clearance: **5.0 – 10.0 mm** from track surface. |
+| **SmartElex RLS-06 (6-IR Array)** | 135.0 × 20.0 × 12.0 mm | 2 holes: **125.0 mm** apart | M3 screws + nuts | Ground clearance: **5.0 – 10.0 mm** from track surface. (Optional add-on). |
+| **MG995 Standard Servo (Recommended)**| 40.7 × 19.7 × 42.9 mm (ear span: 54.0 mm) | 4 holes: **49.5 × 10.0 mm** rectangle | M3 screws | Pocket cutout: **41.5 × 20.5 mm**, depth 38.0 mm. Fits standard 1/10 chassis. |
 | **Micro Servo 9g (SG90 / MG90S)**| 23.0 × 12.2 × 29.0 mm (ear span: 32.5 mm) | 2 holes: **28.0 mm** center-to-center | M2 or M2.5 screws | Pocket cutout: **23.5 × 12.5 mm**, depth 18.0 mm. |
 | **Raspberry Pi Cam Rev 1.3** | 25.0 × 24.0 × 9.0 mm (lens Ø 8.0 mm) | 4 holes: **21.0 × 12.5 mm** rectangle | M2 nylon screws | Lens hole: Ø 8.5 mm; ribbon slot: 17.0 × 2.0 mm. |
 | **400-Point Breadboard** | 82.0 × 55.0 × 9.0 mm | Flat base (adhesive tape back) | Snap-fit border / lip | Recessed deck tray: **83.5 × 56.5 × 3.0 mm**. |
@@ -98,11 +99,15 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
    * Design two drop-down lugs projecting downwards beneath the front nose.
    * Hole spacing: **125.0 mm** (M3 hardware).
    * Ensure that when the car wheels rest on the floor, the bottom face of the RLS-06 PCB sits exactly **6 mm to 8 mm above the ground**.
-2. **Micro Servo 9g Steering Pocket:**
+2. **Steering Servo Pocket (Dual-Fit for MG995 or Micro 9g):**
    * Position on vehicle centerline directly above or behind the front steering tie-rod axis.
-   * Pocket dimensions: **23.5 mm length × 12.5 mm width × 18.0 mm depth**.
-   * Flange ledge: 2.0 mm wide with two pilot holes of **Ø 2.2 mm** spaced **28.0 mm** apart.
-   * Ensure the servo arm/horn moves ±28° with zero mechanical obstruction against chassis walls.
+   * **For MG995 Standard Servo (Recommended):**
+     * Pocket dimensions: **41.5 mm length × 20.5 mm width × 38.0 mm depth**.
+     * Mounting holes: 4× **Ø 3.2 mm** holes arranged in a **49.5 mm × 10.0 mm** rectangle.
+   * **For Micro 9g Servo (Alternative):**
+     * Pocket dimensions: **23.5 mm length × 12.5 mm width × 18.0 mm depth**.
+     * Flange ledge: 2.0 mm wide with two pilot holes of **Ø 2.2 mm** spaced **28.0 mm** apart.
+   * Ensure the servo arm moves ±28° with zero mechanical obstruction against chassis walls.
 3. **Drive Battery Well:**
    * Centerline tray: **140 mm × 48 mm** with 4 mm raised perimeter lips and twin slots for a 20 mm Velcro strap.
 4. **Deck Coupling:**
@@ -171,18 +176,18 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
                ▼                                             ▼
      [ ESP32 DevKit V1 ]                          [ RPi Cam Rev 1.3 ]
   (on 400-pt Breadboard)                         (on Layer 3 Mast)
-   ├── Pin 18 (PWM 50Hz) ──────► 9g Micro Servo (Signal)
+   ├── Pin 18 (PWM 50Hz) ──────► Steering Servo (MG995 or 9g Signal)
    ├── Pin 19 (PWM 50Hz) ──────► ESC Throttle (Signal)
    ├── Pin 5  (Trigger)  ──────► HC-SR04 Center Sonar Trig
    ├── Pin 35 (Echo Center)◄──── HC-SR04 Center Sonar Echo (via 1k/2k Divider)
-   └── Pins 13, 14, 27, └───◄─── SmartElex RLS-06 (Digital Outs 1–6)
-       21, 22, 23 (GPIO)
+   └── Pin 27 (Input Pullup)◄─── Hardware E-Stop Kill Switch
+       *(Note: Camera does primary lane tracking. SmartElex RLS-06 is an optional ground add-on)*
 ```
 
 > [!TIP]
 > **Power Isolation Best Practice:**
 > * The **Raspberry Pi 5** is powered exclusively by the **2500–3000 mAh LiPo Power Bank**.
-> * The **Drive Motor, ESC, and 9g Micro Servo** are powered by the **7.4V 2S LiPo Battery** (servo power comes from the ESC's 5V/6V BEC).
+> * The **Drive Motor, ESC, and Steering Servo** are powered by the **7.4V 2S LiPo Battery** (servo power comes from the ESC's 5V/6V BEC).
 > * The **ESP32** is powered directly from the Raspberry Pi 5 via the USB data cable.
 > * Connect all system grounds (**GND**) together on the 400-point breadboard negative rail.
 
