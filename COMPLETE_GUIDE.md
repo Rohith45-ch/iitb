@@ -289,17 +289,13 @@ Battery       →  ESC Power wires (Red/Black — this powers the motor)
 > [!CAUTION]
 > NEVER power the motor from the Pi or ESP32! The motor draws too much current and will damage them. Always use the battery via the ESC.
 
-**Step 4.3 — ESP32 to Ultrasonic Sensors (HC-SR04)**
+**Step 4.3 — ESP32 to Single Front Ultrasonic Sensor (HC-SR04)**
 ```
-Sensor 1 (Front-Left):
-  ESP32 Pin 5   → TRIG
-  ESP32 Pin 4   → ECHO (through voltage divider or level shifter!)
-  3.3V          → VCC  (or 5V from battery with level shifter)
+Front-Center Sensor:
+  ESP32 Pin 5   → TRIG (10µs Trigger pulse)
+  ESP32 Pin 35  → ECHO (via 1kΩ/2kΩ voltage divider to protect 3.3V GPIO)
+  VIN / 5V      → VCC
   GND           → GND
-
-Sensor 2 (Front-Center):
-  ESP32 Pin 16  → TRIG
-  ESP32 Pin 17  → ECHO
 ```
 
 **Step 4.4 — ESP32 to Raspberry Pi (UART/USB)**

@@ -23,7 +23,7 @@ This architecture document provides the exact mechanical dimensions, mounting pa
 | **Propulsion & ESC** | RC Brushed/Brushless Motor + ESC | Layer 0 / Layer 1 | 50 Hz ESC throttle control (1000–2000 µs pulse) |
 | **Brain Power Supply** | 2500–3000 mAh LiPo Power Bank (5V/3A) | Layer 1 (Mid Deck) | Dedicated isolated power for Raspberry Pi 5 |
 | **Motor Power Supply** | 7.4V 2S LiPo / 7.2V NiMH Battery | Layer 0 (Chassis floor)| High-discharge power for ESC, motor, and servo BEC |
-| **Proximity Sonar Array**| 3× or 4× HC-SR04 Ultrasonic Modules | Layer 2 Front Bumper | Left (+30°), Center (0°), Right (-30°), Flank (90°) |
+| **Proximity Sonar**      | 1× HC-SR04 Ultrasonic Module         | Layer 2 Front Bumper | Center (0°, GPIO 35) for emergency stop |
 | **Wiring & Power Rails** | 400 Tie-Point Solderless Breadboard | Layer 1 (Mid Deck) | ESP32 carrier, voltage dividers, sensor distribution |
 
 > [!NOTE]

@@ -53,29 +53,29 @@ Communication runs over a high-speed, direct hardware UART link.
 
 ## 3. ESP32 Pin Allocation & Sensor Wiring
 
-### A. Ultrasonic Array (HC-SR04) Wiring & 3.3V Voltage Dividers
+### A. Ultrasonic (HC-SR04) Wiring & 3.3V Voltage Divider
 HC-SR04 sensors run on **5V VCC**, meaning their **ECHO** pin outputs a **5V digital pulse**. Because the ESP32 GPIO pins are strictly **3.3V logic**, connecting 5V directly will destroy the GPIO port!
 
-Use a simple 2-resistor voltage divider on every ECHO line:
-$$\text{ECHO (5V)} \longrightarrow [1\text{ k}\Omega] \longrightarrow \text{ESP32 GPIO} \longrightarrow [2\text{ k}\Omega] \longrightarrow \text{GND}$$
+Use a simple 2-resistor voltage divider on the ECHO line:
+$$\text{ECHO (5V)} \longrightarrow [1\text{ k}\Omega] \longrightarrow \text{ESP32 GPIO 35} \longrightarrow [2\text{ k}\Omega] \longrightarrow \text{GND}$$
 $$V_{out} = 5\text{V} \times \frac{2\text{k}\Omega}{1\text{k}\Omega + 2\text{k}\Omega} = 3.33\text{V} \quad \text{(Safe for ESP32)}$$
 
-| Sensor Position | Trig Pin (ESP32) | Echo Pin (ESP32) | VCC / Logic |
-| :--- | :--- | :--- | :--- |
-| **Front Left** | **GPIO 5** (Shared) | **GPIO 34** (via divider) | 5V VCC / 3.3V Echo |
-| **Front Center** | **GPIO 5** (Shared) | **GPIO 35** (via divider) | 5V VCC / 3.3V Echo |
-| **Front Right** | **GPIO 5** (Shared) | **GPIO 32** (via divider) | 5V VCC / 3.3V Echo |
-| **Side (Parking)** | **GPIO 5** (Shared) | **GPIO 33** (via divider) | 5V VCC / 3.3V Echo |
+| Sensor Position | Trig Pin (ESP32) | Echo Pin (ESP32) | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| **Front Center** | **GPIO 5** | **GPIO 35** (via divider) | **Required (Round 1)** | Emergency Stop obstacle brake |
+| **Front Left** | **GPIO 5** | **GPIO 34** | Unused / Optional | Leave disconnected |
+| **Front Right** | **GPIO 5** | **GPIO 32** | Unused / Optional | Leave disconnected |
+| **Side (Parking)** | **GPIO 5** | **GPIO 33** | Unused / Optional | Leave disconnected |
 
-### B. Steering Servo & Motor Driver Wiring
+### B. Steering Servo & ESC (Electronic Speed Controller) Wiring
 
 | Device | Signal Description | ESP32 Pin | Signal Type |
 | :--- | :--- | :--- | :--- |
-| **Steering Servo** | PWM Signal (White/Orange wire) | **GPIO 18** | LEDC Channel 0 (50 Hz, 16-bit) |
-| **Motor Driver** | Motor PWM / Speed | **GPIO 19** | LEDC Channel 1 (20 kHz silent) |
-| **Motor Driver** | Direction IN1 | **GPIO 22** | Digital Output |
-| **Motor Driver** | Direction IN2 | **GPIO 23** | Digital Output |
-| **Motor Driver** | Standby (STBY) | **3.3V or 5V** | Pull HIGH to enable driver |
+| **Steering Servo (MG995 / 9g)** | PWM Signal (White/Orange wire) | **GPIO 18** | LEDC Channel 0 (50 Hz, 16-bit) |
+| **ESC Throttle** | PWM Throttle Signal (White wire) | **GPIO 19** | LEDC Channel 1 (50 Hz RC ESC servo signal) |
+| **ESC Ground** | Common Reference Ground (Black wire) | **GND** | Must share common ground with ESP32 |
+
+*(Note: The ESC is powered by the 7.4V 2S LiPo drive battery. The ESC's internal BEC provides 5V to the steering servo. The ESP32 is powered via USB from the Raspberry Pi 5).*
 
 ### C. Wheel Encoders & Safety Kill Switch
 

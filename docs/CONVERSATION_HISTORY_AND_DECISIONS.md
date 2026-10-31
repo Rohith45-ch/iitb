@@ -127,7 +127,7 @@ Rohith45-ch/iitb/
 3. **Step 3:** Mount electronics on chassis and connect:
    * ESP32 Pin 18 → Steering Servo Signal
    * ESP32 Pin 19 → ESC Signal
-   * ESP32 Pins 5/4 and 16/17 → Ultrasonic Sensors (Front-Left & Front-Center)
+   * ESP32 Pin 5 (Trig) & Pin 35 (Echo) → Single Front-Center Ultrasonic Sensor
 4. **Step 4:** Connect ESP32 to Raspberry Pi via USB cable.
 5. **Step 5:** Boot Pi, SSH in, and run:
    ```bash

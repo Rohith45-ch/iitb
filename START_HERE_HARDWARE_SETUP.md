@@ -1,7 +1,7 @@
 # START HERE — Hardware Integration & Setup Checklist
 ## Urban Autonomous Mobility Challenge (UAMC) — 1:10 Autonomous Vehicle
 
-Follow this checklist the moment your **Raspberry Pi 4B** and **ESP32** arrive. 
+Follow this checklist for your **Raspberry Pi 5** and **ESP32** hardware setup. 
 You can run automated scripts in this repository to test each step.
 
 ---
@@ -10,11 +10,11 @@ You can run automated scripts in this repository to test each step.
 
 ```
 [ ] Step 1: Plug ESP32 into Laptop -> Flash Firmware & Test
-[ ] Step 2: Plug MicroSD Card into Laptop -> Flash Pi OS 64-bit (with Wi-Fi & SSH)
-[ ] Step 3: Power up Raspberry Pi -> SSH into Pi from Laptop
-[ ] Step 4: Clone Repo on Pi -> Run `pip install -r requirements.txt`
+[ ] Step 2: Plug MicroSD Card into Laptop -> Flash Pi OS 64-bit (with Wi-Fi & SSH) [DONE]
+[ ] Step 3: Power up Raspberry Pi 5 -> SSH into Pi from Laptop (rohith@10.94.129.58) [DONE]
+[ ] Step 4: Clone Repo on Pi -> Run `pip install -r requirements.txt` [DONE]
 [ ] Step 5: Connect ESP32 to Pi with USB Cable -> Run `python3 scripts/detect_hardware.py`
-[ ] Step 6: Run Pre-Flight Verification (`python3 scripts/verify_system_ready.py`)
+[ ] Step 6: Run Pre-Flight Verification (`python3 scripts/verify_system_ready.py`) [DONE]
 [ ] Step 7: Launch Autonomous Vehicle (`python3 scripts/run_autonomous.py --use-yolo`)
 ```
 
@@ -27,7 +27,7 @@ You can run automated scripts in this repository to test each step.
    - In **File $\to$ Preferences**, ensure the ESP32 Board URL is added:
      `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
    - In **Tools $\to$ Board**, select **ESP32 Dev Module**.
-   - In **Tools $\to$ Port**, select the port where your ESP32 appears (`COM3`, `COM4`, etc.).
+   - In **Tools $\to$ Port**, select the port where your ESP32 appears (`COM3`, `COM4`, `/dev/ttyUSB0`, etc.).
 3. **Open the Firmware**:
    - In Arduino IDE, open:
      `firmware/esp32_firmware/esp32_vehicle_controller.ino`
@@ -41,60 +41,45 @@ You can run automated scripts in this repository to test each step.
 
 ---
 
-## **Step 2: Preparing the Raspberry Pi 4B MicroSD Card**
+## **Step 2: Preparing the Raspberry Pi 5 MicroSD Card**
 
-1. Insert your MicroSD card (32GB / 64GB) into your laptop.
-2. Open **Raspberry Pi Imager**:
-   - Operating System: **Raspberry Pi OS (64-bit)** (Bookworm).
-   - Storage: Select your MicroSD card.
-3. Click **Next** $\to$ **Edit Settings**:
-   - **Hostname**: `uamc-rover`
-   - **User/Password**: (e.g. `pi` / `raspberry`)
-   - **Wireless LAN**: Enter your Wi-Fi name & password.
-   - **Services Tab**: Check **Enable SSH** (Password authentication).
-4. Click **Write**. Once complete, eject the MicroSD card and insert it into the Raspberry Pi 4B.
+*(Already completed!)*
+* OS: **Raspberry Pi OS (64-bit)**
+* Username: `rohith`
+* Hostname: `raspberrypi`
 
 ---
 
-## **Step 3: Booting the Raspberry Pi & Connecting via SSH**
+## **Step 3: Booting the Raspberry Pi 5 & Connecting via SSH**
 
-1. Power the Raspberry Pi using a 5V 3A USB-C power bank or charger.
-2. Wait 60 seconds for it to boot and connect to your Wi-Fi.
-3. Open a terminal on your laptop (PowerShell, Command Prompt, or bash) and run:
+1. Power the Raspberry Pi 5 using a 5V 3A LiPo power bank or USB-C supply.
+2. The Pi automatically associates with the mobile hotspot (`Heisenberg`).
+3. Connect directly via SSH from your laptop:
    ```bash
-   ssh pi@uamc-rover.local
+   ssh rohith@10.94.129.58
    ```
-   *(Password is whatever you set in Step 2, e.g. `raspberry`).*
 
 ---
 
 ## **Step 4: Installing the Autonomous Vehicle Stack on the Pi**
 
-In the Pi's SSH terminal, copy and run these commands:
-
-```bash
-# 1. Update system packages
-sudo apt update && sudo apt install -y git python3-pip python3-opencv
-
-# 2. Clone the vehicle repository
-git clone https://github.com/Rohith45-ch/iitb.git
-cd iitb
-
-# 3. Install AI & Robotics dependencies
-pip install -r requirements.txt --break-system-packages
-```
+*(Already completed! Cloned to `~/iitb` on the Pi and pre-flight tested).*
 
 ---
 
 ## **Step 5: Connecting the Hardware Together**
 
-1. Plug the **USB Camera** into a USB port on the Raspberry Pi.
-2. Plug the **ESP32** into any USB port on the Raspberry Pi using a short USB cable.
-3. In your SSH terminal, run the diagnostic tool:
+1. **Camera:** Attach the Raspberry Pi Camera Rev 1.3 to Pi 5 port `CAM1` using the 22-pin to 15-pin adapter ribbon cable.
+2. **ESP32:** Plug the ESP32 into any USB port on the Raspberry Pi 5 using a USB cable.
+3. **Actuators & Single Ultrasonic Sensor:**
+   - **Steering Servo:** ESP32 `Pin 18` (Signal)
+   - **ESC Throttle:** ESP32 `Pin 19` (Signal)
+   - **Ultrasonic Sensor (HC-SR04):** `Pin 5` (Trig), `Pin 35` (Echo via 1k/2k divider)
+4. In your Pi 5 SSH terminal, run the diagnostic tool:
    ```bash
    python3 scripts/detect_hardware.py
    ```
-   *It will automatically detect the camera resolution (640x480) and the ESP32 port (`/dev/ttyUSB0`), verify sensor telemetry, and print a green status report!*
+   *It will automatically detect the camera, ESP32 USB port (`/dev/ttyUSB0`), and sensor telemetry!*
 
 ---
 

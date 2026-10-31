@@ -26,9 +26,9 @@ Design and build a scaled autonomous vehicle capable of navigating a miniature u
 
 ### Architectural Approaches Supported by the Stack
 1. **Classical Computer Vision**: Inverse Perspective Mapping (IPM), color-space thresholding (HSV/LAB), and sliding-window polynomial fitting for lane-keeping and sign recognition.
-2. **Multi-Sensor Fusion**: Fusing camera bounding boxes with a multi-transducer ultrasonic array for blind-spot-free obstacle detection.
-3. **End-to-End / Neural Perception Ready**: Lightweight CNN/MobileNet hook points for direct steering angle prediction and sign classification.
-4. **Dedicated Ultrasonic Parking Routine**: Flank-scanning ultrasonic ranging for open-bay localization and geometric parking trajectory execution.
+2. **Multi-Sensor Fusion**: Fusing camera bounding boxes with forward ultrasonic ranging for reactive obstacle detection and emergency braking.
+3. **End-to-End / Neural Perception Ready**: Lightweight CNN/PilotNet models for direct steering angle prediction and sign classification.
+4. **Dedicated Ultrasonic Parking Routine**: Ultrasonic ranging for obstacle proximity and parking bay localization.
 
 ---
 
@@ -36,7 +36,7 @@ Design and build a scaled autonomous vehicle capable of navigating a miniature u
 
 | Element | Requirement | Implementation in this Repository |
 | :--- | :--- | :--- |
-| **Hardware** | Single-board computer + microcontroller paired with cameras, ultrasonic, wheel encoders, IMU | **Raspberry Pi 4B (SBC)** paired with **ESP32 Dual-Core (MCU)**, wide-angle 120° camera, 4× HC-SR04 ultrasonic array, and dual quadrature optical wheel encoders |
+| **Hardware** | Single-board computer + microcontroller paired with camera, ultrasonic, and ESC | **Raspberry Pi 5 (SBC)** paired with **ESP32 Dual-Core (MCU)**, CSI/USB camera, single front HC-SR04 ultrasonic sensor, and ESC-driven powertrain |
 | **Autonomy ("Physical AI")** | Genuine onboard perception and decision-making with zero remote control | Real-time OpenCV pipeline, Behavioral Finite State Machine (FSM), Pure Pursuit lateral tracking, and discrete PID longitudinal control running locally |
 | **Engineering Documentation** | Clear account of system architecture, perception approach, and control stack | Comprehensive [Technical Design Document (TDD)](docs/TECHNICAL_DESIGN_DOCUMENT.md) and [Engineering Calculations](docs/ENGINEERING_CALCULATIONS.md) with full mathematical derivations |
 | **Safety Compliance** | Demonstrable working emergency stop, fused battery output, safe wiring | Hardwired mechanical latching kill switch, 15A inline fuse, 3.3V logic level shifting, and a dual-watchdog system (RPi software ping + ESP32 150 ms hardware timer watchdog) |
