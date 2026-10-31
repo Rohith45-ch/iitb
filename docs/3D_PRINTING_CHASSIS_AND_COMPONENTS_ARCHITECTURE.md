@@ -66,9 +66,9 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
                                            │
   ┌────────────────────────────────────────┴────────────────────────────────────────┐
   │ LAYER 2: COMPUTE & SENSOR DECK (Top Plate)                                      │
-  │ • Front Bumper: 3x HC-SR04 Sonar Pods (Left +30°, Center 0°, Right -30°)        │
+  │ • Front Bumper: 1x HC-SR04 Center Sonar Pod (0°, GPIO 35 - Round 1 Baseline)   │
+  │   (Optional Expansion: Left +30°, Right -30°, Right Flank for Round 2)          │
   │ • Raspberry Pi 5 (M2.5 standoffs, active cooler intake & MicroSD egress)        │
-  │ • Right Flank: HC-SR04 Sonar Pod (Parallel parking gap detection)               │
   └────────────────────────────────────────┬────────────────────────────────────────┘
                    ▲                       │ (4x M3 × 35mm Hex Standoffs)
                    │                       ▼
@@ -131,15 +131,13 @@ A 3-Deck sandwich structure keeps high-current motor power separated from sensit
    * 4× M2.5 holes arranged in a **58.0 mm × 49.0 mm** rectangle.
    * Use 10 mm brass or nylon M2.5 standoffs so the Active Cooler can pull ambient air smoothly.
    * Include a 20 × 10 mm slot directly beneath the MicroSD card slot and CSI camera connector.
-2. **Integrated Front Bumper & Ultrasonic Sonar Pods:**
+2. **Integrated Front Bumper & Ultrasonic Sonar Pod:**
    * Extend the front edge into an impact-resistant curved bumper.
-   * Integrate 3 HC-SR04 sonar brackets:
-     * **Center Sonar:** 0° (pointing straight ahead).
-     * **Left Sonar:** Angled **+30° outward** to detect angled arena walls and track barriers early.
-     * **Right Sonar:** Angled **-30° outward**.
-   * Each bracket requires two cylinder holes: **Ø 16.4 mm** with **26.0 mm** center-to-center spacing.
-3. **Flank Parking Sonar (Right Side):**
-   * 1× HC-SR04 bracket facing 90° right to scan parking stalls for the autonomous parallel parking challenge.
+   * **Round 1 Required:** 1 Center HC-SR04 bracket at 0° (pointing straight ahead, GPIO 35).
+   * **Optional expansion pods (Round 2 only):** Left (+30°), Right (-30°), and Right Flank (90°).
+   * Standard bracket dimensions: Two cylinder holes of **Ø 16.4 mm** with **26.0 mm** center-to-center spacing.
+3. **Flank Parking Sonar (Optional for Round 2):**
+   * Reserved 1× HC-SR04 bracket facing 90° right to scan parking stalls if needed for advanced tasks.
 
 ---
 
