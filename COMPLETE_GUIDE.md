@@ -1,525 +1,265 @@
-# 🚗 UAMC Autonomous RC Car — COMPLETE MASTER GUIDE
+# 🚗 UAMC Autonomous Vehicle — COMPLETE MASTER MANUAL
 ### Techfest IIT Bombay | Raspberry Pi 5 + ESP32 + ESC Architecture
+**Repository:** [https://github.com/Rohith45-ch/iitb.git](https://github.com/Rohith45-ch/iitb.git)  
+**Hardware Revision:** Final Confirmed Hardware Inventory (Raspberry Pi 5 + ESP32 DevKit V1 + Micro Servo 9g + 2500–3500 mAh LiPo + 1x Front Ultrasonic + ESC)  
+**Last Updated:** October 31, 2026  
 
 ---
 
 > [!IMPORTANT]
-> This is your **single source of truth**. Everything you need — hardware list, what software exists, what's missing, and every step to follow when you get the devices.
+> This is your **single source of truth** for the entire project. It contains everything: verified physical inventory, master pin-to-pin wiring diagrams, CAD 3D-printing specifications, firmware flashing steps, Raspberry Pi 5 setup, and calibration playbooks.
 
 ---
 
-## 📦 PART 1 — YOUR HARDWARE LIST (from your note)
+## 📦 PART 1 — VERIFIED HARDWARE INVENTORY
 
-| # | Component | Do We Have Software? | Notes |
-|---|-----------|----------------------|-------|
-| ✅ | Compatible Camera Module | **YES** — fully coded | Use USB webcam OR Pi Camera with CSI adapter |
-| ✅ | Ultrasonic Distance Sensors (1–2 units) | **YES** — fully coded | HC-SR04 recommended |
-| ✅ | Rechargeable Battery + Charger | No software needed | 7.4V 2S LiPo (Motor) + 2500–3500 mAh LiPo (Pi 5) |
-| ⚠️ | **Raspberry Pi 5** | **YES (fully installed & tested)** | Cloned to ~/iitb, running on 10.94.129.58 |
-| ✅ | MicroSD Card | No software needed | 64GB Samsung Evo Plus with Pi OS 64-bit |
-| ✅ | 1/10-scale On-Road RC Chassis | **YES** — geometry coded | All params in `rpi_tuning.py` |
-| ✅ | Steering Servo (Micro Servo 9g) | **YES** — fully coded | 50 Hz PWM on Pin 18 in `esp32_config.h` |
-| ✅ | Drive Motor (compatible with chassis) | **YES** — fully coded | |
-| ✅ | **Electronic Speed Controller (ESC)** | **YES** — firmware updated for ESC** | Single PWM wire like servo |
+### ✅ Confirmed Components In Hand
 
-### ❌ MISSING COMPONENTS — Buy These!
+| # | Component | Exact Model / Specification | Role in System | Software & Wiring Status |
+|---|-----------|-----------------------------|----------------|--------------------------|
+| 1 | **High-Level SBC** | **Raspberry Pi 5 (8GB)** | Vision perception, YOLO/PilotNet AI, FSM Behavior Planner | **100% READY** (OS installed, repo cloned to `~/iitb`, live at `rohith@10.94.129.58`) |
+| 2 | **Microcontroller** | **ESP32 DevKit V1 (30-pin)** | Real-time dual-core FreeRTOS controller, 50 Hz PWM actuator generator, 150ms watchdog | **100% READY** (Firmware in `firmware/esp32_firmware/`) |
+| 3 | **Camera Module** | **Raspberry Pi Camera Rev 1.3** (OV5647 5MP) | Road lane tracking, traffic light detection, traffic signs | Supported via standard 15-to-22 pin RPi 5 CSI adapter cable |
+| 4 | **Steering Servo** | **Micro Servo 9g (SG90 / MG90S)** | Front-wheel Ackermann steering angle control | 50 Hz PWM on ESP32 **GPIO 18** (`PIN_STEER_SERVO`) |
+| 5 | **Drivetrain & Motor**| **RC Motor + Electronic Speed Controller (ESC)** | Vehicle propulsion & proportional braking | 50 Hz PWM on ESP32 **GPIO 19** (`PIN_MOTOR_PWM`) |
+| 6 | **Proximity Sensor** | **1× HC-SR04 Ultrasonic Sensor** | Center front bumper obstacle detection & emergency braking | Trig: ESP32 **GPIO 5** \| Echo: ESP32 **GPIO 35** (via 1kΩ/2kΩ divider) |
+| 7 | **Pi 5 Power Supply**| **2500–3500 mAh LiPo Power Bank (5V $\ge$ 3A)** | Dedicated isolated power for Raspberry Pi 5 | Plugs into Raspberry Pi 5 USB-C port |
+| 8 | **Motor Power Supply**| **7.4V 2S LiPo / 7.2V NiMH Battery Pack** | High-current power for ESC, motor, and servo BEC | Plugs into ESC battery input (XT60 / Deans / Tamiya) |
+| 9 | **Chassis Platform** | **1/10-Scale On-Road RC Chassis** | Wheelbase $\approx 260\text{ mm}$, front Ackermann steering tie rods | Tuned in `config/rpi_tuning.py` (`wheelbase_m = 0.260`) |
+| 10| **Interconnect Data** | **USB-A to Micro-USB Cable** | High-speed 115200 baud serial bridge between Pi 5 and ESP32 | Pi USB-A port $\longleftrightarrow$ ESP32 Micro-USB port |
+| 11| **Breadboard** | **400 Tie-Point Solderless Breadboard** | ESP32 carrier, common ground rail, sensor distribution | Layer 1 Mid-Deck |
+| 12| **Ground Line Sensor**| **SmartElex RLS-06 (6-IR Array)** | Under-nose emergency line recovery | Optional add-on; camera handles primary lane tracking |
 
-| Component | Why Needed | Where to Buy | Cost |
-|-----------|-----------|--------------|------|
-| **ESP32 DevKit v1** | The brain for motor/servo/sensors | Amazon/Robocraze | ₹400–600 |
-| **MPU6050 IMU** | Rollover/collision detection | Amazon/Robocraze | ₹100–150 |
-| **USB-A to Micro-USB cable** | For ESP32 programming | Already have? | ₹50 |
-| **Logic Level Shifter 3.3V↔5V** | ESP32 is 3.3V, ESC signal may be 5V | Amazon | ₹50–100 |
-| **Jumper wires (M-M, M-F, F-F)** | For all connections | Any electronics shop | ₹100 |
-| **Breadboard (optional)** | For prototyping connections | Any electronics shop | ₹100 |
+### 🟡 Optional / Deferred for Round 1
+* **MPU6050 IMU:** Optional for Round 1. Firmware TinyML safety classifier safely falls back to nominal 1G acceleration without errors.
+* **Optical Wheel Encoders:** Optional for Round 1. Throttle is commanded via calibrated open-loop cruising speeds.
 
 ---
 
-## 💻 PART 2 — WHAT SOFTWARE WE'VE ALREADY BUILT
+## 🔌 PART 2 — MASTER PIN-TO-PIN WIRING MAP
 
-Everything is committed and pushed to: `https://github.com/Rohith45-ch/iitb.git`
+Every wire in the autonomous vehicle connects according to this authoritative map:
 
-### Raspberry Pi Software Stack (Python)
 ```
-uamc/
-├── perception/
-│   ├── lane_detector.py          ← Detects road lanes using camera
-│   ├── ai_detector.py            ← YOLO object detection (signs, obstacles)
-│   ├── traffic_lights.py         ← Red/Green/Yellow light detection
-│   ├── traffic_signs.py          ← Stop sign, speed limit detection
-│   ├── pedestrian.py             ← Person detection at crosswalks
-│   ├── obstacle_detector.py      ← Obstacle avoidance logic
-│   └── parking_detector.py       ← Parking space detection
-├── planning/
-│   ├── behavior_planner.py       ← 8-state FSM (go/stop/turn/park...)
-│   └── motion_planner.py         ← Path planning (quintic splines)
-├── control/
-│   ├── pure_pursuit.py           ← Steering control algorithm
-│   ├── longitudinal_controller.py← Speed PID controller
-│   └── pilotnet_controller.py    ← AI end-to-end steering (backup)
-├── hal/
-│   ├── serial_bridge.py          ← UART communication with ESP32
-│   ├── camera_interface.py       ← Camera capture wrapper
-│   └── mock_hal.py               ← Simulated hardware (for testing)
-└── safety/
-    └── emergency_stop.py         ← Watchdog safety system
+                         ┌──────────────────────────────────┐
+                         │   2500–3500 mAh LiPo Powerbank   │
+                         └────────────────┬─────────────────┘
+                                          │ 5V / 3A (USB-C)
+                                          ▼
+                                 [ Raspberry Pi 5 ]
+                                          │
+                             USB Cable    │   15-to-22 Pin Ribbon
+                           (Serial Data)  │
+                                          ▼
+                   ┌──────────────────────┴──────────────────────┐
+                   │                                             │
+                   ▼                                             ▼
+         [ ESP32 DevKit V1 ]                          [ RPi Cam Rev 1.3 ]
+      (on 400-pt Breadboard)                         (on Layer 3 Mast)
+       ├── Pin 18 (PWM 50Hz) ──────► Micro Servo 9g (Signal)
+       ├── Pin 19 (PWM 50Hz) ──────► ESC Throttle (Signal)
+       ├── Pin 5  (Trigger)  ──────► HC-SR04 Center Sonar Trig
+       ├── Pin 35 (Echo Center)◄──── HC-SR04 Center Sonar Echo (via 1k/2k Divider)
+       └── Pin 27 (Input Pullup)◄─── Hardware E-Stop Kill Switch
 ```
 
-### ESP32 Firmware (Arduino/C++)
+### 📋 Detailed Pin Allocation Table
+
+| Hardware Component | Device Wire / Terminal | ESP32 DevKit V1 Pin | Parameter in `esp32_config.h` | Signal Description & Level |
+| :--- | :--- | :--- | :--- | :--- |
+| **Micro Servo 9g** | Signal (Orange or Yellow) | **GPIO 18** | `PIN_STEER_SERVO` | 50 Hz PWM (`LEDC Channel 0`, 1000–2000 µs) |
+| **Micro Servo 9g** | Power (Red) & Ground (Brown) | ESC BEC 5V & Common GND | — | 5V / GND (powered from ESC BEC, NOT ESP32!) |
+| **Drive Motor ESC** | Throttle Signal (White or Yellow)| **GPIO 19** | `PIN_MOTOR_PWM` | 50 Hz PWM (`LEDC Channel 1`, 1000–2000 µs) |
+| **Drive Motor ESC** | Reference Ground (Black) | **ESP32 GND** | — | Must connect to common breadboard GND |
+| **Drive Motor ESC** | Battery Input (Thick Red/Black)| **7.4V 2S LiPo Battery** | — | High-current main motor supply |
+| **HC-SR04 Sonar** | VCC | **5V Power Rail** | — | 5V Power |
+| **HC-SR04 Sonar** | GND | **Common Ground** | — | Ground |
+| **HC-SR04 Sonar** | Trigger | **GPIO 5** | `PIN_US_TRIG` | 10 µs digital pulse from ESP32 |
+| **HC-SR04 Sonar** | Echo | **GPIO 35** (via divider) | `PIN_US_ECHO_CENTER` | 3.3V safe divided logic input |
+| **Hardware E-Stop** | Switch Terminals | **GPIO 27** & **GND** | `PIN_ESTOP_INPUT` | Active-LOW latching button |
+| **Pi 5 Data Bridge** | USB Data Cable | **Micro-USB Port** | Serial UART | 115200 Baud (`/dev/ttyUSB0`) |
+
+### ⚡ Ultrasonic 3.3V Voltage Divider Circuit
+Because HC-SR04 echo pins output 5V and ESP32 GPIOs are strictly 3.3V rated, wire this simple 2-resistor voltage divider on the breadboard:
+$$\text{Echo (5V)} \longrightarrow [1\text{ k}\Omega] \longrightarrow \text{ESP32 GPIO 35} \longrightarrow [2\text{ k}\Omega] \longrightarrow \text{GND}$$
+$$V_{out} = 5\text{V} \times \frac{2\text{ k}\Omega}{1\text{ k}\Omega + 2\text{ k}\Omega} = 3.33\text{V} \quad \text{(100% Safe for ESP32)}$$
+
+---
+
+## 🖨️ PART 3 — 3D PRINTING & MECHANICAL CHASSIS SPECIFICATIONS
+
+If you are 3D-printing decks, brackets, or a custom chassis plate, use these exact dimensions:
+
 ```
-firmware/esp32_firmware/
-├── esp32_vehicle_controller.ino  ← Main firmware (FreeRTOS dual-core)
-├── tinyml_motion.h               ← Collision/rollover AI classifier
-├── ultrasonic_filter.h           ← Sensor noise filtering
-└── esp32_config.h                ← ALL TUNING PARAMETERS (pins, speeds, etc.)
+                           ┌───────────────────────────────┐
+                           │ LAYER 3: PERCEPTION MAST      │
+                           │ Raspberry Pi Camera Rev 1.3   │
+                           │ (Elevated @ 130mm, 18° tilt)  │
+                           └───────────────┬───────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ LAYER 2: COMPUTE & SENSOR DECK (Top Plate)                                      │
+  │ • Front Bumper: 1x HC-SR04 Center Sonar Pod (0°, GPIO 35 - Round 1 Baseline)   │
+  │ • Raspberry Pi 5 (M2.5 standoffs, active cooler intake & MicroSD egress)        │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                   ▲                       │ (4x M3 × 35mm Hex Standoffs)
+                   │                       ▼
+  ┌─────────────────────────────────────────────────────────────────────────────────┐
+  │ LAYER 1: POWER & CONTROLLER DECK (Middle Plate)                                 │
+  │ • 400-Point Breadboard with ESP32 DevKit V1 seated                              │
+  │ • 2500–3500 mAh LiPo Power Bank (dedicated Raspberry Pi 5 power)                │
+  │ • RC ESC Tray with bottom airflow grill                                         │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                   ▲                       │ (4x M3 × 30mm Hex Standoffs)
+                   │                       ▼
+  ┌─────────────────────────────────────────────────────────────────────────────────┐
+  │ LAYER 0: BASE CHASSIS DECK (Ground Plate)                                       │
+  │ • Front Lip Underside: SmartElex RLS-06 6-IR Line Sensor (5-10 mm above track)  │
+  │ • Front Topside: Micro Servo 9g pocket (23.5 × 12.5 mm) & Ackermann tie-rods     │
+  │ • Center Bay: 7.4V 2S LiPo Drive Battery Tray (lowest Center of Gravity)       │
+  │ • Rear Axle: Drive Motor, Differential, and Gearbox                             │
+  └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### AI Models (Downloaded & Ready)
-```
-models/
-├── yolov8n.onnx         ← 12.2 MB — object detection
-├── yolo11n.onnx         ← 5.1 MB  — object detection (faster)
-├── pilotnet_steering.onnx ← 1 MB  — AI steering
-└── mobilenet_v1_ssd.onnx ← 28 MB  — backup detector
-```
+### 📐 Master CAD Dimensioning Table
 
-### Configuration / Tuning Files
-```
-config/rpi_tuning.py              ← Pi-side tuning (camera, speeds, PID values)
-firmware/esp32_firmware/esp32_config.h ← ESP32 hardware tuning (pins, PWM values)
-```
+| Component | Physical Dimensions (L × W × H) | Mounting Hole Pattern | Fastener Size | CAD Modeling Tolerance / Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| **Micro Servo 9g (SG90 / MG90S)**| 23.0 × 12.2 × 29.0 mm | 2 holes: **28.0 mm** center-to-center | M2 or M2.5 screws | Pocket cutout: **23.5 × 12.5 mm**, depth 18.0 mm. |
+| **2500–3500 mAh LiPo Power Bank**| ~96.0 × 65.0 × 16.0 mm | Flat enclosure (no screw holes) | 2× 15 mm Velcro straps | Bay: **100.0 × 68.0 mm** with strap slots (18 × 3 mm). |
+| **Raspberry Pi 5** | 85.0 × 56.0 × 17.0 mm | 4 holes: **58.0 × 49.0 mm** rectangle | M2.5 × 10 mm standoffs | Hole diameter: **Ø 2.8 mm**. Leave SD slot accessible. |
+| **Raspberry Pi Cam Rev 1.3** | 25.0 × 24.0 × 9.0 mm | 4 holes: **21.0 × 12.5 mm** rectangle | M2 nylon screws | Lens hole: Ø 8.5 mm; ribbon slot: 17.0 × 2.0 mm. |
+| **HC-SR04 Ultrasonic Module** | 45.0 × 20.0 × 15.0 mm | Transducer center spacing: **26.0 mm**| Front friction fit / clip | Cut 2 barrel holes: **Ø 16.4 mm** spaced 26.0 mm apart. |
+| **400-Point Breadboard** | 82.0 × 55.0 × 9.0 mm | Flat base (adhesive tape back) | Snap-fit border / lip | Recessed deck tray: **83.5 × 56.5 × 3.0 mm**. |
+| **SmartElex RLS-06 (6-IR Array)** | 135.0 × 20.0 × 12.0 mm | 2 holes: **125.0 mm** apart | M3 screws + nuts | Ground clearance: **5.0 – 10.0 mm** from track surface. |
+| **7.4V Motor LiPo Battery** | ~135.0 × 45.0 × 24.0 mm | Battery cradle | 20 mm Velcro strap | Centerline bottom deck tray: **140.0 × 48.0 mm**. |
 
-### Scripts
-```
-scripts/
-├── run_autonomous.py             ← MAIN: Start the car autonomously
-├── run_sim.py                    ← Test without hardware (simulation)
-├── verify_system_ready.py        ← Pre-flight check (run before connecting hardware)
-├── detect_hardware.py            ← Auto-find ESP32 and camera USB ports
-├── calibrate_camera.py           ← Camera angle calibration tool
-└── fetch_ai_models.py            ← Download AI models if missing
-```
+---
 
-### Documentation
+## 💻 PART 4 — SOFTWARE STACK & REPOSITORY STRUCTURE
+
+Everything is tracked and maintained in your repository: `https://github.com/Rohith45-ch/iitb.git`
+
 ```
-docs/
-├── PHYSICAL_BRINGUP_AND_INTEGRATION_GUIDE.md  ← Hardware connection guide
-├── ESP32_RPI_WIRING_GUIDE.md                  ← Pin-by-pin wiring diagram
-├── DEVICE_TUNING_BLOCKS.md                    ← How to tune after hardware is connected
-└── SIMILAR_PROJECTS_RESEARCH.md               ← Comparison with other projects
-START_HERE_HARDWARE_SETUP.md                   ← 7-step quick-start checklist
+iitb/
+├── config/
+│   └── rpi_tuning.py                  ← Central Pi-side tuning (camera, speeds, PID, lookahead)
+├── docs/
+│   ├── 3D_PRINTING_CHASSIS_AND_COMPONENTS_ARCHITECTURE.md ← Full mechanical blueprints
+│   ├── ESP32_RPI_WIRING_GUIDE.md      ← Detailed electrical wiring guide
+│   ├── DEVICE_TUNING_BLOCKS.md        ← Parameter tuning playbook
+│   ├── ROUND1_ACTION_PLAN.md          ← Video submission script & track build
+│   └── ROUND1_ARCHITECTURE_AND_BUILD_GUIDE.md ← Full system architecture
+├── firmware/
+│   └── esp32_firmware/
+│       ├── esp32_vehicle_controller.ino ← Dual-core FreeRTOS firmware
+│       ├── esp32_config.h             ← Master pin assignments & actuator trims
+│       ├── ultrasonic_filter.h        ← Median-of-5 + EMA outlier filter
+│       └── tinyml_motion.h            ← Collision & rollover classifier
+├── models/
+│   ├── yolov8n.onnx                   ← Real-time object detection (signs, obstacles)
+│   ├── yolo11n.onnx                   ← Lightweight secondary detector
+│   └── pilotnet_steering.onnx         ← End-to-end neural steering model
+├── scripts/
+│   ├── run_autonomous.py              ← MAIN PRODUCTION ENTRY POINT
+│   ├── verify_system_ready.py         ← Automated pre-flight system diagnostic
+│   ├── detect_hardware.py             ← Auto-detection of camera & ESP32 USB ports
+│   ├── calibrate_camera.py            ← Interactive perspective warp (IPM) calibration
+│   └── run_sim.py                     ← Software-in-the-loop (SITL) simulator
+└── uamc/                              ← Core Python autonomy package
+    ├── perception/ (lane, sign, traffic light, obstacle detectors)
+    ├── planning/   (behavior FSM, motion trajectory generator)
+    ├── control/    (pure pursuit steering, longitudinal PID speed)
+    └── hal/        (serial bridge, camera interface)
 ```
 
 ---
 
-## 🔌 PART 3 — HOW RASPBERRY PI AND ESP32 ARE CONNECTED
+## 🚀 PART 5 — STEP-BY-STEP BRING-UP GUIDE
 
-```
-  ┌─────────────────────────────┐        ┌─────────────────────────────┐
-  │       RASPBERRY PI 5         │        │          ESP32 DevKit        │
-  │   (High-Level AI Brain)      │        │  (Low-Level Hardware Control)│
-  │                              │        │                              │
-  │  ┌─────────────────────┐     │        │  ┌────────────────────────┐  │
-  │  │  Camera → AI Models  │     │        │  │  Servo PWM → Steering  │  │
-  │  │  Lane Detection       │     │        │  │  ESC PWM  → Motor      │  │
-  │  │  Traffic Lights       │     │        │  │  Ultrasonic Sensors    │  │
-  │  │  Object Detection     │     │        │  │  Encoder (if present)  │  │
-  │  │  Behavior Planner     │     │        │  │  IMU (MPU6050)         │  │
-  │  │  Motion Planner       │     │        │  │  Emergency Stop        │  │
-  │  └─────────────────────┘     │        │  └────────────────────────┘  │
-  │                              │        │                              │
-  │  serial_bridge.py            │◄──────►│  esp32_vehicle_controller   │
-  │  (UART at 115200 baud)        │  USB   │  .ino                        │
-  │                              │  Cable │                              │
-  └─────────────────────────────┘        └─────────────────────────────┘
+### Step 1: Flash & Test the ESP32
+1. Plug the ESP32 DevKit into your laptop using a micro-USB data cable.
+2. Open **Arduino IDE**:
+   * In **File $\to$ Preferences**, ensure the ESP32 Board URL is added:
+     `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
+   * Under **Tools $\to$ Board**, select **ESP32 Dev Module**.
+   * Under **Tools $\to$ Port**, select your ESP32's COM port (`COM3`, `COM4`, `/dev/ttyUSB0`, etc.).
+3. Open `firmware/esp32_firmware/esp32_vehicle_controller.ino`.
+4. Click **Upload** ($\rightarrow$). *(If terminal says "Connecting...", hold down physical **BOOT** button for 2 seconds).*
+5. Open **Serial Monitor** at **115200 baud**. You will see live telemetry:
+   `#TEL,2.00,2.00,2.00,0.20,0,0,0.0,0*`
 
-  Pi sends: #CMD,<steering>,<throttle>,<emergency_stop>*\n   (30 times/sec)
-  ESP32 sends: #TEL,<dist_left>,<dist_center>,<dist_right>,<yaw>,<estop>*\n
-```
-
-**Simple English**: Pi looks at the camera, runs AI, decides what to do → sends commands to ESP32 over USB cable → ESP32 physically moves the steering servo and motor via ESC.
-
----
-
-## 🗺️ PART 4 — STEP-BY-STEP: WHAT TO DO WHEN YOU GET THE HARDWARE
-
----
-
-### 📌 PHASE 1: Prepare Your Laptop (Do This NOW, Before Hardware Arrives)
-
-**Step 1.1 — Clone/pull the latest code**
-```bash
-cd /home/rohith/iitb
-git pull origin main
-```
-
-**Step 1.2 — Install Python dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-**Step 1.3 — Install Arduino IDE (for ESP32 programming)**
-```bash
-# Download from: https://www.arduino.cc/en/software
-# OR use the snap package:
-sudo snap install arduino
-```
-
-**Step 1.4 — Add ESP32 board to Arduino IDE**
-1. Open Arduino IDE
-2. Go to `File → Preferences`
-3. In "Additional Board Manager URLs", add:
+### Step 2: Power Up & Connect to Raspberry Pi 5
+*(Your Pi 5 is already installed and verified!)*
+1. Power the Pi 5 from the **2500–3500 mAh LiPo power bank**.
+2. Connect your laptop to the hotspot (`Heisenberg`).
+3. Open terminal and log in via SSH:
+   ```bash
+   ssh rohith@10.94.129.58
    ```
-   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+4. Pull the latest code:
+   ```bash
+   cd ~/iitb && git pull origin main
    ```
-4. Go to `Tools → Board → Board Manager`
-5. Search "esp32" → Install **"esp32 by Espressif Systems"**
 
-**Step 1.5 — Verify simulation works (no hardware needed)**
-```bash
-cd /home/rohith/iitb
-python scripts/run_sim.py
-# Should run for 30 seconds and show no errors
-```
-
----
-
-### 📌 PHASE 2: When Raspberry Pi 5 Arrives
-
-**Step 2.1 — Flash the microSD card**
-1. Download **Raspberry Pi Imager**: https://www.raspberrypi.com/software/
-2. Select: `Raspberry Pi OS (64-bit)` (NOT Lite — you need the full version)
-3. Click ⚙️ settings gear BEFORE flashing:
-   - Enable SSH ✅
-   - Set username: `pi`, password: `uamc2024`
-   - Set WiFi: your laptop's hotspot SSID + password
-4. Flash to microSD → Insert into Pi
-
-**Step 2.2 — First boot + SSH into Pi**
-```bash
-# On your laptop, create a mobile hotspot (Settings → WiFi → Hotspot)
-# Boot the Pi (it will auto-connect to hotspot)
-# Find Pi's IP address in your phone hotspot settings
-ssh pi@<PI_IP_ADDRESS>
-# Password: uamc2024
-```
-
-**Step 2.3 — Update Pi and install dependencies**
-```bash
-# On the Pi (via SSH):
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3-pip python3-opencv git libatlas-base-dev
-pip3 install onnxruntime numpy scipy pyserial
-```
-
-**Step 2.4 — Clone repo onto the Pi**
-```bash
-# On the Pi:
-git clone https://github.com/Rohith45-ch/iitb.git
-cd iitb
-```
-
-**Step 2.5 — Connect camera to Pi**
-- **USB Webcam**: Just plug it in → it will appear as `/dev/video0`
-- **Pi Camera Module**: Connect via CSI ribbon cable (Pi 5 needs the SHORT 22-pin connector end)
-  - Enable camera: `sudo raspi-config → Interface Options → Camera → Enable`
-
-**Step 2.6 — Test camera on Pi**
-```bash
-# On the Pi:
-python3 -c "import cv2; cap=cv2.VideoCapture(0); ret,frame=cap.read(); print('Camera OK!' if ret else 'FAIL'); cap.release()"
-```
-
-**Step 2.7 — Test AI models on Pi**
-```bash
-cd /home/pi/iitb
-python3 scripts/verify_system_ready.py
-# All checks should PASS (ESP32 check will show "not connected" — that's OK for now)
-```
+### Step 3: Connect Hardware & Run Pre-Flight Diagnostics
+1. Plug the **ESP32** into any USB-A port on the Raspberry Pi 5 using the USB cable.
+2. Connect the **Raspberry Pi Camera Rev 1.3** to port `CAM1` on the Pi 5 using the 22-to-15 pin adapter ribbon cable.
+3. Wire the **Micro Servo 9g** to ESP32 Pin 18 and **ESC** to ESP32 Pin 19.
+4. Wire the **HC-SR04** to ESP32 Pin 5 (Trig) and Pin 35 (Echo via divider).
+5. In your Pi 5 SSH terminal, run the hardware detector:
+   ```bash
+   python3 scripts/detect_hardware.py
+   ```
+6. Run the master pre-flight test:
+   ```bash
+   python3 scripts/verify_system_ready.py
+   ```
+   *Expected output: ALL PRE-FLIGHT CHECKS PASSED!*
 
 ---
 
-### 📌 PHASE 3: When ESP32 Arrives
+## ⚙️ PART 6 — TUNING & CALIBRATION QUICK-REFERENCE
 
-**Step 3.1 — Connect ESP32 to your LAPTOP via USB**
+### ESP32 Parameters: [`firmware/esp32_firmware/esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h)
+
+| Constant | Default | Purpose / How to Tune |
+| :--- | :--- | :--- |
+| `SERVO_MID_US` | `1500` | **Steering Neutral Trim:** Increase if car pulls left; decrease if it pulls right. |
+| `SERVO_MIN_US` | `1000` | Full Left steering lock pulse width (-28.0°). |
+| `SERVO_MAX_US` | `2000` | Full Right steering lock pulse width (+28.0°). |
+| `ESC_NEUTRAL_US` | `1500` | ESC neutral stop pulse width ($1500\ \mu\text{s}$). |
+| `ESC_FORWARD_SAFE_CAP_US` | `1700` | Safe maximum forward speed cap for indoor practice. Reduce to 1620 for slower testing. |
+| `PIN_STEER_SERVO` | `18` | Micro Servo 9g PWM GPIO pin. |
+| `PIN_MOTOR_PWM` | `19` | ESC throttle PWM GPIO pin. |
+| `PIN_US_TRIG` | `5` | Ultrasonic trigger pulse GPIO pin. |
+| `PIN_US_ECHO_CENTER` | `35` | Ultrasonic center echo GPIO pin. |
+| `PIN_ESTOP_INPUT` | `27` | Physical emergency kill switch GPIO pin. |
+
+### Raspberry Pi Parameters: [`config/rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py)
+
+| Constant | Default | Purpose / How to Tune |
+| :--- | :--- | :--- |
+| `wheelbase_m` | `0.260` | Distance between front and rear axles in meters ($26.0\text{ cm}$). |
+| `lookahead_min_m`| `0.28` | Pure pursuit lookahead. Increase if car wiggles; decrease if cutting corners. |
+| `v_cruise_ms` | `0.45` | Main cruising speed ($\approx 1.6\text{ km/h}$). Set to `0.35` for slower, safer testing. |
+| `obstacle_emergency_dist_m` | `0.25` | Obstacle distance trigger for emergency stop ($25\text{ cm}$). |
+
+---
+
+## 🏆 PART 7 — LAUNCHING FOR ROUND 1 QUALIFICATION
+
+Place your vehicle on your practice track, turn on the motor battery, and run:
+
 ```bash
-# Check it's detected:
-ls /dev/ttyUSB* /dev/ttyACM*
-# Should show: /dev/ttyUSB0 or /dev/ttyACM0
+# Production launch with YOLOv8 obstacle detection in headless mode:
+python3 scripts/run_autonomous.py --serial-port /dev/ttyUSB0 --use-yolo --no-gui
 ```
 
-**Step 3.2 — Give permission to use the port**
+To record the official qualification run video with telemetry overlay:
 ```bash
-sudo usermod -a -G dialout $USER
-# Log out and log back in for this to take effect
-```
-
-**Step 3.3 — Open firmware in Arduino IDE**
-1. Open Arduino IDE
-2. `File → Open → /home/rohith/iitb/firmware/esp32_firmware/esp32_vehicle_controller.ino`
-
-**Step 3.4 — Select your ESP32 board**
-1. `Tools → Board → ESP32 Arduino → ESP32 Dev Module`
-2. `Tools → Port → /dev/ttyUSB0` (or whatever appeared in Step 3.1)
-
-**Step 3.5 — Upload firmware to ESP32**
-1. Click the **→ Upload** button (right arrow)
-2. Wait for "Done uploading" message
-3. Open `Tools → Serial Monitor`, set baud to `115200`
-4. You should see: `[ESP32] System ready. Waiting for Pi commands...`
-
----
-
-### 📌 PHASE 4: Wiring Everything Together
-
-**Step 4.1 — ESP32 to Servo (Steering)**
-```
-ESP32 Pin 18  →  Servo Signal (Yellow/White wire)
-ESP32 GND     →  Servo GND (Brown/Black wire)
-5V Power      →  Servo VCC (Red wire)  ← Use battery, NOT ESP32 5V
-```
-
-**Step 4.2 — ESP32 to ESC (Motor)**
-```
-ESP32 Pin 19  →  ESC Signal wire (usually White)
-ESP32 GND     →  ESC GND (Black wire)
-Battery       →  ESC Power wires (Red/Black — this powers the motor)
-```
-
-> [!CAUTION]
-> NEVER power the motor from the Pi or ESP32! The motor draws too much current and will damage them. Always use the battery via the ESC.
-
-**Step 4.3 — ESP32 to Single Front Ultrasonic Sensor (HC-SR04)**
-```
-Front-Center Sensor:
-  ESP32 Pin 5   → TRIG (10µs Trigger pulse)
-  ESP32 Pin 35  → ECHO (via 1kΩ/2kΩ voltage divider to protect 3.3V GPIO)
-  VIN / 5V      → VCC
-  GND           → GND
-```
-
-**Step 4.4 — ESP32 to Raspberry Pi (UART/USB)**
-```
-Simply: USB-A (Pi) ←→ USB-Micro (ESP32)
-That's it! No extra wiring needed.
-```
-
-**Step 4.5 — Power everything**
-```
-Battery (7.4V LiPo) → ESC → Powers motor
-Battery → BEC (Battery Eliminator Circuit, built into most ESC) → 5V for servo
-Raspberry Pi → Power via its USB-C port (5V 3A power bank)
-ESP32 → Powered via USB from Raspberry Pi (once connected)
+python3 scripts/record_qualification_run.py --output-video round1_submission.mp4
 ```
 
 ---
-
-### 📌 PHASE 5: Software Connection Between Pi and ESP32
-
-**Step 5.1 — Connect ESP32 to Raspberry Pi via USB**
-(The USB cable from Phase 4 Step 4.4 — same cable you used for programming)
-
-**Step 5.2 — Detect the ESP32 on the Pi**
-```bash
-# On the Pi:
-cd /home/pi/iitb
-python3 scripts/detect_hardware.py
-# Output: Found ESP32 at /dev/ttyUSB0
-```
-
-**Step 5.3 — Run the pre-flight check**
-```bash
-python3 scripts/verify_system_ready.py
-# All 23 checks should PASS including ESP32 connection
-```
-
-**Step 5.4 — Run a communication test**
-```bash
-python3 -c "
-from uamc.hal.serial_bridge import SerialBridge
-bridge = SerialBridge('/dev/ttyUSB0', 115200)
-bridge.start()
-import time; time.sleep(2)
-tel = bridge.get_telemetry()
-print('Telemetry from ESP32:', tel)
-bridge.stop()
-"
-# Should print ultrasonic distances + other sensor data
-```
-
----
-
-### 📌 PHASE 6: Calibration (Tune Before Full Run)
-
-**Step 6.1 — Calibrate steering center**
-```
-1. Open: firmware/esp32_firmware/esp32_config.h
-2. Find: SERVO_MID_US  (currently 1500)
-3. Change the value and re-upload firmware
-4. Check if front wheels are perfectly straight
-5. Keep adjusting until straight → that's your center value
-```
-
-**Step 6.2 — Calibrate ESC (VERY IMPORTANT — Do This First!)**
-```
-1. Turn on ESC with no battery to motor
-2. Plug in battery
-3. The ESC will beep to indicate it's in calibration mode
-4. Open Arduino Serial Monitor
-5. ESP32 will automatically send neutral throttle (1500 µs)
-6. Most ESCs need you to set max then min then neutral
-   (check your ESC manual)
-```
-
-**Step 6.3 — Calibrate camera (IPM trapezoid)**
-```bash
-# On the Pi, with camera mounted on car:
-python3 scripts/calibrate_camera.py
-# This opens a window — drag the 4 corners to match the road edge
-# Press 'S' to save when happy
-```
-
-**Step 6.4 — Tune PID speed controller**
-```
-Open: config/rpi_tuning.py
-Find: PID_KP, PID_KI, PID_KD
-Start with: KP=0.8, KI=0.01, KD=0.05
-Run the car at slow speed, observe behavior:
-- If it overshoots: reduce KP
-- If it's sluggish: increase KP
-- If it oscillates: increase KD
-```
-
----
-
-### 📌 PHASE 7: First Full Autonomous Run
-
-**Step 7.1 — Put car on test track**
-- Make sure area is clear
-- Have someone ready to pull the power plug if something goes wrong
-- Start on a straight road section
-
-**Step 7.2 — SSH into Pi from laptop**
-```bash
-ssh pi@<PI_IP>
-cd /home/pi/iitb
-```
-
-**Step 7.3 — Run the autonomous system**
-```bash
-# Basic run (no YOLO, fastest):
-python3 scripts/run_autonomous.py
-
-# With YOLO object detection (recommended for competition):
-python3 scripts/run_autonomous.py --use-yolo
-
-# With AI steering (experimental):
-python3 scripts/run_autonomous.py --use-yolo --use-pilotnet
-```
-
-**Step 7.4 — Monitor in real-time**
-```
-The terminal will print:
-[PERCEPTION] Lane detected | Curvature: 0.02
-[BEHAVIOR]   State: LANE_FOLLOW | Speed: 0.3 m/s
-[CONTROL]    Steer: 0.12 | Throttle: 0.35
-[ESP32-TEL]  Front: 85cm | Left: 120cm | Right: 110cm
-```
-
-**Step 7.5 — Emergency stop**
-```
-Press Ctrl+C in terminal → car stops immediately
-OR
-Disconnect the USB between Pi and ESP32 → ESP32 watchdog triggers, car stops in 200ms
-```
-
----
-
-## 📊 PART 5 — COMPLETE COMPONENT TO SOFTWARE MAP
-
-| Hardware Component | Software File | What It Does |
-|-------------------|---------------|-------------|
-| USB Camera / Pi Cam | `uamc/hal/camera_interface.py` | Captures frames at 30fps |
-| Camera frames | `uamc/perception/lane_detector.py` | Finds lane lines |
-| Camera frames | `uamc/perception/ai_detector.py` | Detects signs/obstacles |
-| Camera frames | `uamc/perception/traffic_lights.py` | Detects red/green lights |
-| HC-SR04 Ultrasonic | `firmware/esp32_firmware/ultrasonic_filter.h` | Filtered distance measurement |
-| Steering Servo | `firmware/esp32_firmware/esp32_config.h` (SERVO_* params) | PWM steering control |
-| ESC + Motor | `firmware/esp32_firmware/esp32_config.h` (ESC_* params) | PWM speed control |
-| MPU6050 IMU | `firmware/esp32_firmware/tinyml_motion.h` | Rollover/collision detection |
-| Pi ↔ ESP32 USB | `uamc/hal/serial_bridge.py` | Command/telemetry bridge |
-| All sensors combined | `uamc/planning/behavior_planner.py` | Decides what to do |
-| Behavior output | `uamc/control/pure_pursuit.py` | Calculates steering angle |
-| Speed control | `uamc/control/longitudinal_controller.py` | PID throttle control |
-
----
-
-## ⚙️ PART 6 — ALL TUNING PARAMETERS (Quick Reference)
-
-### Raspberry Pi Side → `config/rpi_tuning.py`
-| Parameter | Default | What to change |
-|-----------|---------|----------------|
-| `CAMERA_INDEX` | 0 | Change to 1 if wrong camera |
-| `TARGET_SPEED_MS` | 0.4 | Competition driving speed |
-| `SLOW_SPEED_MS` | 0.2 | Near obstacles/turns |
-| `PID_KP` | 0.8 | Speed control aggressiveness |
-| `LOOKAHEAD_DIST` | 0.3 | Steering lookahead (bigger = smoother) |
-| `STOP_DISTANCE_M` | 0.4 | Emergency stop distance |
-
-### ESP32 Side → `firmware/esp32_firmware/esp32_config.h`
-| Parameter | Default | What to change |
-|-----------|---------|----------------|
-| `SERVO_MID_US` | 1500 | Steering center / neutral trim (calibrate!) |
-| `SERVO_MIN_US` | 1000 | Full left turn (-28.0°) |
-| `SERVO_MAX_US` | 2000 | Full right turn (+28.0°) |
-| `ESC_NEUTRAL_US` | 1500 | Motor stop / neutral position |
-| `ESC_FORWARD_SAFE_CAP_US` | 1700 | Maximum forward speed safety cap |
-| `PIN_STEER_SERVO` | 18 | Micro Servo 9g signal wire GPIO pin |
-| `PIN_MOTOR_PWM` | 19 | ESC signal wire GPIO pin |
-| `PIN_US_TRIG` | 5 | Ultrasonic shared trigger GPIO pin |
-| `PIN_US_ECHO_CENTER` | 35 | Front-Center ultrasonic echo GPIO pin |
-| `PIN_ESTOP_INPUT` | 27 | Physical emergency kill switch GPIO pin |
-
----
-
-## 🚨 PART 7 — COMMON PROBLEMS AND FIXES
-
-| Problem | Cause | Fix |
-|---------|-------|-----|
-| Car doesn't move | ESC not calibrated | Do ESC calibration (Phase 6.2) |
-| Car steers in wrong direction | Servo wired backwards or center wrong | Adjust `SERVO_MID_US` |
-| ESP32 not detected | Permission issue | Run `sudo usermod -a -G dialout $USER` then logout/login |
-| Camera not found | Wrong index | Change `CAMERA_INDEX` from 0 to 1 in `rpi_tuning.py` |
-| Car goes too fast | Speed too high | Reduce `TARGET_SPEED_MS` in `rpi_tuning.py` |
-| Car doesn't detect obstacles | Sensors wired wrong | Check wiring, measure with Serial Monitor |
-| AI model error | Missing model file | Run `python3 scripts/fetch_ai_models.py` |
-| Import error on Pi | Missing library | Run `pip3 install -r requirements.txt` |
-
----
-
-## 📅 PART 8 — RECOMMENDED TIMELINE
-
-```
-TODAY          → Buy missing components (ESP32, MPU6050, jumper wires)
-Day 1 (Pi)    → Flash Pi OS, install software, test camera
-Day 1 (ESP32) → Upload firmware, test via Serial Monitor
-Day 2         → Wire everything together, test communication
-Day 3         → Calibrate servo, ESC, camera
-Day 4         → First autonomous run (small area, slow speed)
-Day 5–7       → Tune parameters, test all competition scenarios
-Competition   → UAMC at Techfest, IIT Bombay 🏆
-```
-
----
-
-## 🔗 IMPORTANT LINKS
-
-- **GitHub Repo**: https://github.com/Rohith45-ch/iitb.git
-- **Arduino IDE**: https://www.arduino.cc/en/software
-- **Raspberry Pi Imager**: https://www.raspberrypi.com/software/
-- **ESP32 Board Package URL**: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
-- **HC-SR04 Datasheet**: https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf
-
----
-
-*Last updated: 2026-10-30 | Version 3.0 — Combined Pi5 + ESC Architecture*
+*Single Source of Truth Manual — Maintained & committed directly in [Rohith45-ch/iitb](https://github.com/Rohith45-ch/iitb).*
