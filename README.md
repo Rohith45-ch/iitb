@@ -9,7 +9,7 @@
 > An autonomous 1:10 scaled vehicle engineered to navigate a miniature tabletop urban street network with **100% onboard physical AI** and zero live remote control.
 
 > [!IMPORTANT]
-> **Received your Raspberry Pi 4B & ESP32 hardware?**  
+> **Received your Raspberry Pi 5 & ESP32 hardware?**  
 > Follow the master checklist: **[START_HERE_HARDWARE_SETUP.md](START_HERE_HARDWARE_SETUP.md)** to plug in, test, and launch the vehicle step-by-step.
 
 ---
@@ -50,7 +50,7 @@ Workload is decoupled between high-level perception/planning (Linux SBC) and det
 
 ```
 +-----------------------------------------------------------------------------------+
-|                            HIGH-LEVEL COMPUTE (Raspberry Pi 4B)                   |
+|                            HIGH-LEVEL COMPUTE (Raspberry Pi 5)                   |
 |                                                                                   |
 |  [ Wide-Angle Camera ]                                                            |
 |          |                                                                        |

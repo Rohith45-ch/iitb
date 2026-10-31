@@ -1,5 +1,5 @@
 """
-Raspberry Pi 4B — Centralized Tuning & Parameter Configuration Block.
+Raspberry Pi 5 — Centralized Tuning & Parameter Configuration Block.
 All tuneable perception, AI model, behavior planning, and control parameters
 for the physical vehicle are defined here in one place.
 """

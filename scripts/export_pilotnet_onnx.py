@@ -2,7 +2,7 @@
 """
 NVIDIA PilotNet End-to-End Steering Neural Network Generator & Exporter.
 Builds the complete PilotNet architecture into an optimized ONNX model
-(models/pilotnet_steering.onnx) for low-latency steering inference on Raspberry Pi 4B.
+(models/pilotnet_steering.onnx) for low-latency steering inference on Raspberry Pi 5.
 """
 
 from pathlib import Path

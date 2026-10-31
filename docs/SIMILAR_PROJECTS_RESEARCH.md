@@ -8,7 +8,7 @@ This document surveys the top open-source repositories, international competitio
 
 | Project / Competition | Compute Architecture | Perception Stack | Control & Planning | Key Strengths & Lessons for UAMC |
 | :--- | :--- | :--- | :--- | :--- |
-| **Our UAMC Stack** *(Current)* | **Raspberry Pi 4B + ESP32** | Hybrid: Classical IPM + YOLOv8n ONNX + PilotNet | 8-State FSM + Speed-Adaptive Pure Pursuit + PID | Optimized for 60 FPS lane keeping, zero heavy framework dependencies, dual-core FreeRTOS safety. |
+| **Our UAMC Stack** *(Current)* | **Raspberry Pi 5 + ESP32** | Hybrid: Classical IPM + YOLOv8n ONNX + PilotNet | 8-State FSM + Speed-Adaptive Pure Pursuit + PID | Optimized for 60 FPS lane keeping, zero heavy framework dependencies, dual-core FreeRTOS safety. |
 | **Bosch Future Mobility Challenge (BFMC)** | Raspberry Pi 4B + STM32 Nucleo | Classical CV + YOLOv5/v8 + Traffic Semaphore API | Custom FSM + Waypoint graph navigation | Industry-standard 1:10 urban track benchmark (intersections, crosswalks, parking). |
 | **MIT / Penn F1TENTH** | Jetson Orin Nano / RPi + VESC | 2D LiDAR (urg_node) + Monocular Camera | Pure Pursuit + Follow-the-Gap + MPC | Gold-standard mathematical formulation for Pure Pursuit lookahead geometry and cornering. |
 | **MIT / ETH Duckietown** | Raspberry Pi 4B (Duckiebot) | Monocular Fisheye + Classical CV + Segment CNN | FSM + Line segment lateral controller | Standardized tabletop smart-city rules (yellow/white lane lines, LED traffic lights). |

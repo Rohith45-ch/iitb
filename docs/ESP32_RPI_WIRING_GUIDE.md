@@ -8,8 +8,8 @@ This guide details the exact electrical connections, level-shifting, pinouts, an
 
 ```
                        +-----------------------------+
-                       |    2S / 3S LiPo Battery     |
-                       |      (7.4V - 11.1V)         |
+                       |    2S LiPo Battery          |
+                       |      (7.4V nominal)          |
                        +--------------+--------------+
                                       |
                       [ 15A Master Kill Switch / E-Stop ]
@@ -18,13 +18,13 @@ This guide details the exact electrical connections, level-shifting, pinouts, an
               |                                               |
      +--------v--------+                             +--------v--------+
      |   High-Current  |                             | Motor Driver    |
-     | 5V / 5A Buck IC |                             | (TB6612/BTS7960)|
+     | 5V / 5A Buck IC |                             | | ESC (Electronic  ||
      +--------+--------+                             +--------+--------+
               |                                               |
     +---------+---------+                            [ DC Drive Motor ]
     |                   |
 +---v-------------+ +---v-------------+
-| Raspberry Pi 4B | |  ESP32 DevKit   |
+| Raspberry Pi 5  | |  ESP32 DevKit   |
 | (Perception/FSM)| | (Actuator/Sens) |
 +--------+--------+ +---+-------------+
          |              |

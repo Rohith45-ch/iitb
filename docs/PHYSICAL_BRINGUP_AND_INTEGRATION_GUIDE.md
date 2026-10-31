@@ -1,7 +1,7 @@
 # Complete Physical Bring-Up, Integration & Tuning Guide
 ## Urban Autonomous Mobility Challenge (UAMC) — 1:10 Autonomous Vehicle
 
-This step-by-step guide walks you from unboxing your **Raspberry Pi 4B** and **ESP32** to having a fully working, self-driving autonomous vehicle on the track.
+This step-by-step guide walks you from unboxing your **Raspberry Pi 5** and **ESP32** to having a fully working, self-driving autonomous vehicle on the track.
 
 ---
 
@@ -16,7 +16,7 @@ This step-by-step guide walks you from unboxing your **Raspberry Pi 4B** and **E
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
-│ PHASE 2: Setup Raspberry Pi 4B (Plug SD Card into Laptop)              │
+│ PHASE 2: Setup Raspberry Pi 5 (Plug SD Card into Laptop)              │
 │   • Flash Raspberry Pi OS 64-bit using Raspberry Pi Imager             │
 │   • SSH from Laptop into Pi via Wi-Fi                                  │
 │   • Clone repo -> run `pip install -r requirements.txt`                │
@@ -31,7 +31,7 @@ This step-by-step guide walks you from unboxing your **Raspberry Pi 4B** and **E
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │ PHASE 4: Mount on Chassis & Run Autonomous Vehicle                     │
-│   • Power up motor battery (7.4V/11.1V) & Pi Power Bank (5V 3A)        │
+│   • Power up motor battery (7.4V (2S LiPo)) & Pi Power Bank (5V 3A)        │
 │   • Run `python3 scripts/run_autonomous.py --use-yolo --use-pilotnet`  │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
@@ -82,7 +82,7 @@ The ESP32 manages all motor PWM, steering servo angles, ultrasonic sonars, and h
 
 ---
 
-## **Phase 2: Setting up the Raspberry Pi 4B (via Laptop)**
+## **Phase 2: Setting up the Raspberry Pi 5 (via Laptop)**
 
 The Raspberry Pi runs the high-level brain: camera frame processing, YOLOv8 object detection, lane tracking, and behavioral decision planning.
 
@@ -96,14 +96,14 @@ The Raspberry Pi runs the high-level brain: camera frame processing, YOLOv8 obje
    * Set username and password: e.g. `pi` / `raspberry` (or your preferred credentials)
    * Check **Configure wireless LAN**: Enter your home/mobile hotspot Wi-Fi SSID and Password.
    * Go to the **Services** tab $\to$ Check **Enable SSH** (Use password authentication).
-6. Click **Save** and **Write**. Once complete, eject the MicroSD card and insert it into the Raspberry Pi 4B.
+6. Click **Save** and **Write**. Once complete, eject the MicroSD card and insert it into the Raspberry Pi 5.
 
 ### **Step 2.2: Power Up & Connect via SSH**
 1. Power the Raspberry Pi with a 5V 3A USB-C power supply or power bank.
 2. Wait 60 seconds for it to boot and connect to your Wi-Fi.
 3. On your laptop, open a terminal (PowerShell, Command Prompt, or bash) and connect:
    ```bash
-   ssh pi@uamc-rover.local
+   ssh rohith@10.94.129.58
    # (Enter the password you created in Step 2.1)
    ```
    *(If `uamc-rover.local` is not found, check your mobile hotspot or Wi-Fi router for the Pi's IP address, e.g., `ssh pi@192.168.1.105`).*

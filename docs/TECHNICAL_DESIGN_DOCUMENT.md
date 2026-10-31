@@ -17,13 +17,13 @@ AML-Rover-V1 is an autonomous scaled robotic vehicle developed for the Urban Aut
 ```mermaid
 graph TD
     subgraph Power System
-        BATT[7.4V / 11.1V LiPo Battery]
+        BATT[7.4V 2S LiPo Battery]
         FUSE[15A Fast-Blow Fuse & Master Kill Switch]
         BUCK[5V/5A Switching Regulator]
     end
 
     subgraph Compute Stack
-        SBC[High-Level SBC: Raspberry Pi 4 / Jetson Nano<br/>Linux OS + Python Perception & Planning Stack]
+        SBC[High-Level SBC: Raspberry Pi 5<br/>Linux OS + Python Perception & Planning Stack]
         MCU[Low-Level MCU: ESP32 / Arduino Nano<br/>Real-Time PID & Actuator PWM Driver]
     end
 
@@ -59,7 +59,7 @@ graph TD
     ESC --> MOTOR
 ```
 
-- **Compute Unit**: Raspberry Pi 4B (4GB) running Ubuntu Linux / Raspberry Pi OS. High-level vision processing and decision planning run at 30+ FPS.
+- **Compute Unit**: Raspberry Pi 5 (8GB) running Ubuntu Linux / Raspberry Pi OS. High-level vision processing and decision planning run at 30+ FPS.
 - **Microcontroller**: ESP32 / Arduino running embedded C++ firmware responsible for 100 Hz PID motor control, servo angle modulation, sensor polling, and hardware watchdog fail-safes.
 - **Sensors**: Wide-angle low-distortion camera (60 FPS, 1080p scaled to 640x480), three ultrasonic distance sensors (front-left, front-center, front-right) with 2 cm–400 cm range, side ToF/ultrasonic sensor for bay detection, and quadrature optical wheel encoders.
 - **Chassis & Drive**: 1:10 scale Ackermann steering chassis with rear-wheel drive and differential gearing, providing realistic non-holonomic vehicle kinematics.
