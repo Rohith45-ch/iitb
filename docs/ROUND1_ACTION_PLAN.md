@@ -46,7 +46,7 @@ The competition requires demonstrating basic autonomous capability on a home or 
 The video must prove that the vehicle is operating autonomously and reliably. Use the following structured script:
 
 ### Segment 1: Vehicle & Architecture Introduction (0:00 – 1:00)
-- Close-up shots of the vehicle chassis, compute board (Raspberry Pi / Jetson), microcontroller, camera, and ultrasonic sensors.
+- Close-up shots of the vehicle chassis, compute board (Raspberry Pi 5), ESP32 microcontroller, camera, and front ultrasonic sensor.
 - Highlight the **Emergency Stop (E-Stop)** button: show how pressing it instantly cuts motor power.
 - Brief voiceover/subtitles: *"AML-Rover-V1, featuring modular perception, Pure Pursuit steering control, and hardware-isolated safety watchdog."*
 

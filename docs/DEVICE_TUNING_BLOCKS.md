@@ -68,14 +68,16 @@ Modify these settings when trimming the steering servo, adjusting motor starting
 * **Car Pulls to the Left when Driving Straight**: Increase `SERVO_MID_US` (e.g. `1530`).
 * **Car Pulls to the Right when Driving Straight**: Decrease `SERVO_MID_US` (e.g. `1470`).
 
-### 2. Motor Starting Deadband
+### 2. ESC Throttle Calibration (1/10 RC Drivetrain)
 ```cpp
 // In firmware/esp32_firmware/esp32_config.h
-#define MOTOR_MIN_START_PWM      35        // Minimum PWM duty to overcome gearbox friction
-#define MOTOR_MAX_SAFE_PWM       220       // Maximum duty cap (0 - 255)
+#define USE_ESC_MOTOR_DRIVER     1         // 1 = RC ESC (Default), 0 = Dual H-Bridge
+#define ESC_NEUTRAL_US           1500      // Neutral / stopped pulse width (us)
+#define ESC_FORWARD_SAFE_CAP_US  1700      // Safe forward speed limiter for indoor testing (1500-2000 us)
+#define ESC_DEADBAND_NORM        0.04f     // Throttle deadband around zero
 ```
-* **Motor Whines / Buzzes at Low Speed but Doesn't Move**: Increase `MOTOR_MIN_START_PWM` (e.g. `45`).
-* **Vehicle Lurches Forward Abruptly on Start**: Decrease `MOTOR_MIN_START_PWM` (e.g. `25`).
+* **Car Moves Too Fast Indoors**: Decrease `ESC_FORWARD_SAFE_CAP_US` to `1620` (gentler acceleration).
+* **Motor Doesn't Move at Low Throttle**: Increase `ESC_DEADBAND_NORM` slightly or calibrate the ESC throttle range.
 
 ### 3. Ultrasonic Outlier & Multipath Filter
 ```cpp
@@ -101,7 +103,7 @@ Modify these settings when trimming the steering servo, adjusting motor starting
 | Symptom | Device | File to Open | Parameter to Change |
 | :--- | :--- | :--- | :--- |
 | **Car drifts left or right when given 0 steering** | ESP32 | [`esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h) | Adjust `SERVO_MID_US` by $\pm 20$–$50\mu s$ |
-| **Motor buzzes at stop or doesn't move at low speed** | ESP32 | [`esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h) | Increase `MOTOR_MIN_START_PWM` to `40–50` |
+| **Car moves too fast during testing** | ESP32 | [`esp32_config.h`](file:///home/rohith/iitb/firmware/esp32_firmware/esp32_config.h) | Lower `ESC_FORWARD_SAFE_CAP_US` to `1620` |
 | **Steering wiggles rapidly on straight track** | Raspberry Pi | [`rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py) | Increase `lookahead_min_m` to `0.32` |
 | **Vehicle cuts corners too tight** | Raspberry Pi | [`rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py) | Decrease `lookahead_min_m` to `0.24` |
 | **Traffic light red/green not recognized** | Raspberry Pi | [`rpi_tuning.py`](file:///home/rohith/iitb/config/rpi_tuning.py) | Adjust `light_red1_hsv` or `light_green_hsv` |

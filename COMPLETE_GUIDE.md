@@ -354,7 +354,7 @@ bridge.stop()
 **Step 6.1 — Calibrate steering center**
 ```
 1. Open: firmware/esp32_firmware/esp32_config.h
-2. Find: SERVO_CENTER_US  (currently 1500)
+2. Find: SERVO_MID_US  (currently 1500)
 3. Change the value and re-upload firmware
 4. Check if front wheels are perfectly straight
 5. Keep adjusting until straight → that's your center value
@@ -469,13 +469,16 @@ Disconnect the USB between Pi and ESP32 → ESP32 watchdog triggers, car stops i
 ### ESP32 Side → `firmware/esp32_firmware/esp32_config.h`
 | Parameter | Default | What to change |
 |-----------|---------|----------------|
-| `SERVO_CENTER_US` | 1500 | Steering center (calibrate!) |
-| `SERVO_LEFT_US` | 1100 | Full left turn |
-| `SERVO_RIGHT_US` | 1900 | Full right turn |
-| `ESC_NEUTRAL_US` | 1500 | Motor stop position |
-| `ESC_MAX_US` | 1700 | Maximum forward speed |
-| `PIN_SERVO` | 18 | Servo signal wire GPIO pin |
-| `PIN_ESC` | 19 | ESC signal wire GPIO pin |
+| `SERVO_MID_US` | 1500 | Steering center / neutral trim (calibrate!) |
+| `SERVO_MIN_US` | 1000 | Full left turn (-28.0°) |
+| `SERVO_MAX_US` | 2000 | Full right turn (+28.0°) |
+| `ESC_NEUTRAL_US` | 1500 | Motor stop / neutral position |
+| `ESC_FORWARD_SAFE_CAP_US` | 1700 | Maximum forward speed safety cap |
+| `PIN_STEER_SERVO` | 18 | Micro Servo 9g signal wire GPIO pin |
+| `PIN_MOTOR_PWM` | 19 | ESC signal wire GPIO pin |
+| `PIN_US_TRIG` | 5 | Ultrasonic shared trigger GPIO pin |
+| `PIN_US_ECHO_CENTER` | 35 | Front-Center ultrasonic echo GPIO pin |
+| `PIN_ESTOP_INPUT` | 27 | Physical emergency kill switch GPIO pin |
 
 ---
 
@@ -484,7 +487,7 @@ Disconnect the USB between Pi and ESP32 → ESP32 watchdog triggers, car stops i
 | Problem | Cause | Fix |
 |---------|-------|-----|
 | Car doesn't move | ESC not calibrated | Do ESC calibration (Phase 6.2) |
-| Car steers in wrong direction | Servo wired backwards or center wrong | Adjust `SERVO_CENTER_US` |
+| Car steers in wrong direction | Servo wired backwards or center wrong | Adjust `SERVO_MID_US` |
 | ESP32 not detected | Permission issue | Run `sudo usermod -a -G dialout $USER` then logout/login |
 | Camera not found | Wrong index | Change `CAMERA_INDEX` from 0 to 1 in `rpi_tuning.py` |
 | Car goes too fast | Speed too high | Reduce `TARGET_SPEED_MS` in `rpi_tuning.py` |
