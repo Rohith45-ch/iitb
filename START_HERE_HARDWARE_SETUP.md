@@ -81,8 +81,9 @@ You can run automated scripts in this repository to test each step.
    - **Left TT motor:** L298N OUT1 / OUT2
    - **Right TT motor:** L298N OUT3 / OUT4
    - **HC-SR04 TRIG:** `GPIO 5` | **HC-SR04 ECHO:** `GPIO 35` via 1kΩ/2kΩ voltage divider
-   - **Servo (+):** 5V buck (+) with 470–1000 µF capacitor across the rail
-   - **E-stop NC contact:** In series with 3S LiPo battery (+) before the 10A fuse
+   - **Servo (+):** own 5V branch from the same power bank as the Pi, with 470–1000 µF capacitor; do not power from Pi GPIO header
+   - **10A fuse:** Fit close to the 3S LiPo positive terminal, before the E-stop; confirm rating against wire size and measured current.
+   - **E-stop NC contact:** In series with the fused battery (+) line
    - **E-stop NO contact:** `GPIO 27` to GND, 10kΩ pull-up from GPIO 27 to 3.3V
 4. In your Pi 5 SSH terminal, run the diagnostic tool:
    ```bash

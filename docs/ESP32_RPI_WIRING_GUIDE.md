@@ -10,11 +10,13 @@
 
 ```
                     ┌────────────────────────────┐
-                    │   Power Bank (5V / 3A)     │
+                    │ Power Bank (5V / 3A listed)│
                     └────────────┬───────────────┘
-                                 │ USB-C
-                                 ▼
-                        [ Raspberry Pi 5 ]
+                  ┌──────────────┴───────────────┐
+                  │                              │
+          separate 5V branch               separate 5V branch
+                  ▼                              ▼
+         [ Raspberry Pi 5 ]              [ Servo + capacitor ]
                                  │
                        USB-A to Micro-USB
                        (115200 baud, /dev/ttyUSB0)
@@ -30,17 +32,18 @@
 │              3S LiPo (11.1V / 2200mAh)               │
 └──┬───────────────────────────────────────────────────┘
    │
+   ▼
+ [10A Fuse — close to battery positive terminal]
+   │
    ▼ NC contact
  [ E-Stop ] ── NO contact ──► GPIO 27 (+ 10kΩ to 3.3V)
    │
-   ▼
- [10A Fuse]
-   │
    ├──► [7V Buck] ──► L298N +12V(VS) ──► TT Motors
    │
-   └──► [5V Buck] ──► Servo (+) + 470-1000µF cap
-                  ──► HC-SR04 VCC
+   └──► [5V Buck] ──► HC-SR04 VCC
                   ──► L298N +5V logic (5V jumper removed)
+
+Power bank also powers the servo through its own 5V branch (not from the Pi GPIO header).
 
 All GNDs ──► Single common GND point
 ```
@@ -61,7 +64,7 @@ The **only** link between Pi 5 and ESP32 is a USB-A to Micro-USB data cable. No 
 | — | GPIO 17 (TX2) | Unused when USB active |
 
 - Pi 5 sees ESP32 as **`/dev/ttyUSB0`** at **115200 baud**
-- Pi 5 powered **separately** from power bank → USB-C port
+- Pi 5 and servo powered from the same bank through **separate branches**; do not power the servo from the Pi GPIO header
 - Do **NOT** also connect ESP32 5V pin when using USB power
 
 ---
@@ -113,7 +116,7 @@ Stop:     GPIO19 (PWM)   = 0
 | GND | Brown / Black (−) | Common GND | |
 
 > [!CAUTION]
-> Never power servo from ESP32 3.3 V or 5 V pin — it will cause resets under load. Always use the 5 V buck with the capacitor.
+> Power the servo from its own branch of the shared power bank, with the 470–1000 µF capacitor across its supply. Do not power it from an ESP32 pin or the Pi GPIO header. Check the bank can supply Pi and servo together without voltage sag.
 
 ### C. Ultrasonic Sensor HC-SR04 (Front Centre Only)
 
@@ -150,7 +153,7 @@ The E-stop has **two separate contacts** — wire them differently:
 
 | Contact | Wired To | Effect When Pressed |
 |---------|----------|---------------------|
-| **NC (Normally Closed)** | Battery (+) line, before the 10A fuse | **Opens** → cuts ALL motor power |
+| **NC (Normally Closed)** | Battery (+) line, after a fuse fitted close to the battery | **Opens** → cuts motor power |
 | **NO (Normally Open)** | GPIO 27 to GND; 10 kΩ from GPIO 27 to 3.3V | **Closes** → pulls GPIO 27 LOW |
 
 ESP32 reads `PIN_ESTOP_INPUT` (GPIO 27):
@@ -222,7 +225,7 @@ baudrate    = 115200
 |---------|-------|
 | Motors hum but don't turn | ENA/ENB jumpers still on L298N; or PWM < `MOTOR_MIN_START_PWM` |
 | Motors very hot | 7V buck too high — re-measure and re-adjust before running |
-| Servo jitters | Missing 470–1000 µF capacitor; or servo on ESP32 pin, not buck |
+| Servo jitters | Missing 470–1000 µF capacitor; weak power bank/cable; or servo powered from Pi/ESP32 GPIO |
 | Sonar reads 0 or 2.5m always | ECHO divider missing (5V into GPIO); TRIG and ECHO swapped |
 | ESP32 resets at motor start | GND not common; or 5V buck sagging — check capacitor |
 | Car moves after E-stop | NC contact not in battery line; or NO/NC contacts swapped at GPIO 27 |

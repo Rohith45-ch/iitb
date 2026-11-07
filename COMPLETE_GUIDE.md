@@ -21,15 +21,15 @@
 | 5 | **TT Gear Motor** | 3–9 V rated (use 3–9V type; plain 6V TT is rated lower than our 7V supply) | Left and right wheel drive | 2 |
 | 6 | **3S LiPo Battery** | **2200 mAh, 11.1 V nominal / 12.6 V full** | Main drive power source | 1 |
 | 7 | **Buck Converter — 7 V** | 3 A+ output capacity | Steps 3S LiPo down to 7 V for motor supply | 1 |
-| 8 | **Buck Converter — 5 V** | 3 A+ output capacity | Powers servo, HC-SR04, and L298N logic | 1 |
+| 8 | **Buck Converter — 5 V** | 3 A+ output capacity | Powers HC-SR04 and L298N logic | 1 |
 | 9 | **Steering Servo SG90 / MG90S** | 9 g micro servo, 5 V | Front-wheel Ackermann steering | 1 |
 | 10 | **HC-SR04 Ultrasonic Sensor** | Front centre only | Obstacle detection and emergency braking | 1 |
 | 11 | **E-stop Button** | 22 mm latching, **2 contacts** (1× NC + 1× NO) | Cuts main battery line (NC); signals ESP32 (NO) | 1 |
 | 12 | **10 A Inline Fuse + Holder** | — | Battery positive lead protection | 1 |
 | 13 | **Resistors** | 1 kΩ, 2 kΩ, 10 kΩ | Sonar echo voltage divider (1k+2k); E-stop pull-up (10k) | 1 each |
-| 14 | **Capacitor** | 470–1000 µF, 16 V | Across servo 5 V supply rail | 1 |
+| 14 | **Capacitor** | 470–1000 µF, 16 V | Across servo power-bank branch | 1 |
 | 15 | **USB-A to Micro-USB Cable** | Data cable (NOT charge-only) | Pi 5 USB-A ↔ ESP32 Micro-USB — only Pi↔ESP32 link | 1 |
-| 16 | **Power Bank** | 5 V / 3 A output | Raspberry Pi 5 dedicated power via USB-C | 1 |
+| 16 | **Power Bank** | 5 V / 3 A listed output | Shared by Pi 5 and servo on separate branches; verify combined load | 1 |
 | 17 | **400-Point Breadboard** | Solderless | ESP32 carrier + common ground rail | 1 |
 
 ### 🟡 Optional / Not Used in Round 1
@@ -42,16 +42,17 @@
 ## ⚡ PART 2 — POWER TREE (per PDF §2)
 
 ```
-3S LiPo (+) ──► E-stop NC contact ──► 10 A fuse ──┬──► 7 V buck ──► L298N +12V (VS) ──► motors
+3S LiPo (+) ──► 10 A fuse (close to battery) ──► E-stop NC ──┬──► 7 V buck ──► L298N +12V (VS) ──► motors
                                                     │
-                                                    └──► 5 V buck ──┬──► Servo (+) + 470–1000 µF cap
-                                                                    ├──► HC-SR04 VCC
+                                                    └──► 5 V buck ──┬──► HC-SR04 VCC
                                                                     └──► L298N +5V logic (5V jumper REMOVED)
 
-3S LiPo (−) ──► common GND ──► ESP32 GND ──► L298N GND ──► Servo (−) ──► HC-SR04 GND ──► buck GNDs
+Power bank (5 V / 3 A listed) ──┬──► Pi 5 USB-C
+                                └──► Servo (+) through its own branch + 470–1000 µF cap
 
-Power bank (5 V / 3 A) ──► Pi 5 USB-C                  (Pi ONLY — never from motor battery)
 Pi 5 USB-A              ──► ESP32 Micro-USB              (powers ESP32; do NOT also feed ESP32 5V pin)
+
+All grounds, including power-bank, servo, ESP32, L298N, buck, and sonar grounds, must be common.
 ```
 
 > [!WARNING]
@@ -110,7 +111,7 @@ Pi 5 USB-A              ──► ESP32 Micro-USB              (powers ESP32; do
 | From | To | Wire / Note |
 |------|----|-------------|
 | ESP32 GPIO 18 | Servo signal wire | Yellow or orange wire |
-| 5 V buck out (+) | Servo red (+) wire | **+ 470–1000 µF capacitor across this rail** |
+| Power bank 5 V branch | Servo red (+) wire | Separate branch from bank; **+ 470–1000 µF capacitor across this rail**; do not use Pi GPIO header |
 | Common GND | Servo brown / black (−) wire | |
 
 ### C. Ultrasonic Sensor (HC-SR04) Connections
@@ -140,7 +141,7 @@ V_GPIO35 = 5V × 2kΩ/(1kΩ+2kΩ) = 3.33 V  ✅ Safe for ESP32
 |------|----|-------------|
 | E-stop NO contact | GPIO 27 to GND | When pressed: closes to GND = LOW |
 | 10 kΩ resistor | GPIO 27 to 3.3 V | External pull-up |
-| E-stop NC contact | Battery (+) line, before the fuse | When pressed: opens = cuts ALL power |
+| E-stop NC contact | Battery (+) line, after a fuse fitted close to the battery | When pressed: opens = cuts motor-battery power |
 
 ### E. Pi 5 ↔ ESP32 Link
 
@@ -148,7 +149,7 @@ V_GPIO35 = 5V × 2kΩ/(1kΩ+2kΩ) = 3.33 V  ✅ Safe for ESP32
 |------|----|------|
 | Pi 5 USB-A port | ESP32 Micro-USB | **Only** link between Pi and ESP32 |
 | Pi 5 CAM port | Pi Camera Rev 1.3 | 15-to-22 pin CSI ribbon cable |
-| Power bank (5V/3A) | Pi 5 USB-C | Pi 5 dedicated power — never from motor battery |
+| Power bank | Pi 5 USB-C and servo | Same bank, separate power branches; confirm it supports combined load |
 
 ---
 
@@ -205,7 +206,7 @@ Confirm `PIN_ESTOP_INPUT` is configured as `INPUT_PULLUP` **or** has the externa
 1. **Fuse out. Battery disconnected.** Power Pi from power bank, ESP32 from Pi USB-A only. Confirm Pi sees ESP32 at `/dev/ttyUSB0`.
 2. **Check every connection** with battery disconnected: continuity, no short between + and −, correct polarity everywhere.
 3. **Fit the fuse.** Connect 3S LiPo with **wheels off the ground**.
-4. **Press E-stop:** Motors and servo must stop immediately. Release before next step.
+4. **Press E-stop:** Motor-battery power must cut. The servo stays powered from the power bank and firmware commands it to center. Release before next step.
 5. **Measure buck outputs:** 7 V buck on motor rail, 5 V buck on logic rail. Adjust with a multimeter before connecting L298N.
 6. **Small forward throttle:** Both wheels turn forward. Reverse one motor's two wires at OUT terminals if it runs backwards.
 7. **Sweep steering:** Both front wheels turn same direction, nothing binds at full lock.
@@ -252,7 +253,7 @@ Confirm `PIN_ESTOP_INPUT` is configured as `INPUT_PULLUP` **or** has the externa
 |---------|-------------|
 | Motors hum but do not turn | ENA/ENB not wired to GPIO 19, or PWM below `MOTOR_MIN_START_PWM` (try increasing from 35) |
 | Motors very hot after a minute | Motor supply too high — check 7 V buck; 3S LiPo must NOT reach L298N directly |
-| Servo jitters | Missing 470–1000 µF capacitor on servo supply, or servo powered from ESP32 3.3 V pin |
+| Servo jitters | Missing 470–1000 µF capacitor on its power-bank branch, weak bank/cable, or servo powered from ESP32/Pi GPIO |
 | Sonar reads 0 or max constantly | ECHO not divided (5 V going into ESP32), TRIG and ECHO swapped, or unfitted sonar pins picked up |
 | ESP32 resets when motors start | Shared ground missing, or supply sagging under load — add the cap, check the 5 V buck |
 | Car moves after E-stop press | E-stop NC contact not in battery line, or GPIO 27 wired to NC contact instead of NO contact |
