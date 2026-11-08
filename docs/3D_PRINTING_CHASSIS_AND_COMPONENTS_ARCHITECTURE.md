@@ -3,13 +3,33 @@
 **Repository:** [Rohith45-ch/iitb](https://github.com/Rohith45-ch/iitb)  
 **Document File Path:** [`docs/3D_PRINTING_CHASSIS_AND_COMPONENTS_ARCHITECTURE.md`](file:///home/rohith/iitb/docs/3D_PRINTING_CHASSIS_AND_COMPONENTS_ARCHITECTURE.md)  
 **Hardware Authority:** `Wiring_and_Pin_Map.pdf` (Repo: `Rohith45-ch/iitb`)  
-**Revision:** 2.0 (Upgraded 170 mm Wheelbase · L298N + TT Motors · Dual Buck Converters · Micro Servo 9g · Single Center Sonar)  
-**Date:** October 31, 2026  
+**Revision:** 2.2 (Aligned to `Wiring_and_Pin_Map.pdf` · Outer/Base Layer Reprint Checklist · Corrected 170 mm Wheelbase)  
+**Date:** November 7, 2026  
 
 ---
 
 > [!IMPORTANT]
 > This is a **preliminary layout guide**, not a print-ready CAD drawing. Measure the actual parts and resolve the items marked **NEEDS CONFIRMATION** before modeling or printing the full chassis.
+
+> **Outer-layer reprint quick status — updated 2026-11-07:** Use the corrected **170 mm axle-center wheelbase**. Do not reuse the old 185 mm rear-axle position. Electrical placement is aligned to `/home/rohith/Downloads/Wiring_and_Pin_Map.pdf`: the 5 V buck powers the servo, sonar, and L298N logic; the power bank powers the Pi only; and the E-stop NC contact is before the fuse in the battery line. The outer/base layer may be reprinted only after checking the actual wheel track, steering clearance, motor mounting points, and battery footprint against the checklist in Section 2A.
+
+---
+
+## 2A. Outer/Base Layer Reprint Checklist
+
+Use this checklist before exporting the outer/base layer STL. These are the current locked decisions and the remaining measurements that must come from the physical vehicle.
+
+| Item | Current specification | Before printing |
+|---|---|---|
+| Wheelbase | **170.0 mm**, front axle center to rear axle center | Mark both axle centerlines in CAD; do not use 185 mm |
+| Base envelope | **240 mm length × 110 mm width × 3.5 mm floor** | Treat as a starting envelope; verify wheel and motor overhang |
+| Track width | Not safely fixed in the repository | Measure wheel-center to wheel-center and check full steering lock |
+| Front servo mount | Raised mount or through-opening; no 18 mm-deep pocket in 3.5 mm floor | Measure the SG90/MG90S body, ears, horn, and linkage before cutting |
+| Rear motor mounts | Actual TT motor and axle positions | Measure both motors and confirm wheel alignment/ground clearance |
+| Battery cradle | Sized from the actual 3S battery, leads, and connector | Leave removal clearance; do not compress the pack |
+| Layer-1 mounting bosses | Six M3 support bosses, 7 mm outer diameter / 3.2 mm hole | Confirm the upper-deck footprint fits the measured electronics |
+
+**Minimum reprint gate:** confirm the 170 mm wheelbase, actual track width, front wheel sweep, servo clearance, and rear motor positions. If any of these are unknown, print a small fit-check piece or mark the part locations on the existing chassis before printing the complete outer layer.
 
 ---
 
@@ -27,11 +47,11 @@
 | **Drive Motors** | **2× TT Gear Motors; exact model and stall current unknown** | **Layer 0** (Rear Axle) | Check each motor's voltage and stall current against the L298N and buck converter before driving |
 | **Drive Battery** | **3S LiPo 2200 mAh (11.1V / 12.6V)** | **Layer 0** (Center Floor) | High-current main power source (lowest center of gravity) |
 | **Motor Regulator** | **7V Buck Converter (3A+)** | **Layer 1** (Mid Deck) | Drops 3S pack to 7V for L298N motor supply (`+12V VS`) |
-| **Logic Regulator** | **5V Buck Converter (3A+)** | **Layer 1** (Mid Deck) | Powers HC-SR04 VCC and L298N 5V logic; servo is powered from the shared Pi power bank |
-| **Pi + Servo Power Bank** | **2500–3500 mAh, listed as 5V/3A — verify actual output** | **Layer 1** (Mid Deck Rear) | One bank powers Pi 5 and servo on separate branches. Combined load must be checked; Pi 5 recommends 5V/5A. |
+| **Logic Regulator** | **5V Buck Converter (3A+)** | **Layer 1** (Mid Deck) | Powers servo, HC-SR04 VCC, and L298N 5V logic; remove the L298N 5V jumper |
+| **Pi Power Bank** | **2500–3500 mAh, 5V/3A listed output** | **Layer 1** (Mid Deck Rear) | Powers the Pi 5 only through USB-C; do not power the servo from the Pi GPIO header |
 | **Obstacle Sonar** | **1× HC-SR04 Ultrasonic Sensor** | **Layer 2** (Front Bumper) | Front-center emergency braking pod (Trig: GPIO 5, Echo: GPIO 35) |
 | **E-Stop Switch** | **22 mm Latching E-Stop (2 Contacts)** | **Layer 1/2** (Top Flange) | NC contact in battery line; NO contact to ESP32 GPIO 27 |
-| **Inline Fuse** | **10A fuse — rating still needs checking against measured current and wire size** | **Layer 0/1** (next to battery positive terminal) | Protects the battery lead; fit before the E-stop in the positive wire |
+| **Inline Fuse** | **10A fuse — rating still needs checking against measured current and wire size** | **Layer 0/1** (next to battery positive terminal) | Protects the battery lead; fit after the E-stop in the positive wire |
 | **Prototyping Deck** | **400-Point Solderless Breadboard** | **Layer 1** (Mid Deck) | ESP32 carrier, common GND rail, 1k/2k echo divider, servo cap |
 | **Ground Line Sensor**| **SmartElex RLS-06 (6-IR Array)** | **Layer 0** (Under-Nose) | Optional ground recovery sensor (camera handles main lane tracking) |
 
@@ -57,7 +77,7 @@ Every dimension includes standard FDM 3D printing tolerances (+0.2 mm to +0.3 mm
 | **Raspberry Pi Camera Rev 1.3** | 25.0 × 24.0 × 9.0 mm (lens Ø 8.0 mm) | 4 holes: **21.0 × 12.5 mm** rectangle | 4× M2 nylon screws | Lens aperture: **Ø 9.0 mm**; bottom ribbon slot: **17.0 × 2.5 mm**. |
 | **HC-SR04 Ultrasonic Module** | 45.0 × 20.0 × 15.0 mm (cylinders: Ø 16.0 mm)| Dual cylinder center spacing: **26.0 mm**| Front friction snap-fit | 2 barrel holes: **Ø 16.4 mm** spaced 26.0 mm on center. |
 | **22 mm Latching E-Stop Switch**| Ø 22.0 mm threaded body, Ø 30 mm bezel | Single panel hole | Threaded locking ring | Flange hole: **Ø 22.5 mm**; prominent top-deck position. |
-| **2500–3500 mAh LiPo Power Bank**| Measure actual bank | Flat rectangular pack | Straps sized to bank | **NEEDS CONFIRMATION:** size bay from actual bank and verify it can power Pi 5 and servo together. Use separate power branches; do not power servo from the Pi GPIO header. |
+| **2500–3500 mAh LiPo Power Bank**| Measure actual bank | Flat rectangular pack | Straps sized to bank | **NEEDS CONFIRMATION:** size bay from the actual bank; it powers the Pi 5 only. |
 | **SmartElex RLS-06 (Optional)** | 135.0 × 20.0 × 12.0 mm | 2 mounting holes: **125.0 mm** apart | 2× M3 screws + spacers | Under-nose bracket: **6.0 – 8.0 mm** track clearance. |
 
 ---
@@ -81,7 +101,7 @@ The vehicle is partitioned into **4 vertical structural tiers** connected by M3 
   • 400-Point Breadboard (Carries ESP32 DevKit V1 + Voltage Divider + 1000µF Cap)
   • L298N Dual H-Bridge Motor Driver Module (M3 standoffs, heatsink exposed)
   • 7V Buck Converter (Motor Rail) & 5V Buck Converter (Sonar/L298N Logic Rail)
-  • 2500–3500 mAh LiPo Power Bank Cradle (shared by Pi 5 and servo on separate branches)
+  • 2500–3500 mAh LiPo Power Bank Cradle (Pi 5 only)
 ===================================================================================
                        LAYER 0: STRUCTURAL BASE CHASSIS (Bottom Floor)
   • Wheelbase: Exactly 170.0 mm (Axle to Axle)
@@ -169,11 +189,9 @@ The vehicle is partitioned into **4 vertical structural tiers** connected by M3 
                          ┌────────────────────────────────────────┐
                          │   2500–3500 mAh LiPo Power Bank        │
                          └───────────────────┬────────────────────┘
-                              ┌──────────────┴───────────────┐
-                              │                              │
-                        5V branch to Pi                5V branch to servo
-                              ▼                              ▼
-                     [ Raspberry Pi 5 ]             [ 9g Servo + capacitor ]
+                              │ 5V / 3A USB-C
+                              ▼
+                     [ Raspberry Pi 5 ]
                                              │
                                 USB Cable    │   15-to-22 Pin Ribbon
                               (Serial Data)  │
@@ -196,10 +214,10 @@ The vehicle is partitioned into **4 vertical structural tiers** connected by M3 
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ (+) Positive Wire
                                     ▼
-                         [ 10A Inline Fuse ]
+                         [ E-Stop Switch NC Contact ]
                                     │
                                     ▼
-                      [ E-Stop Switch NC Contact ]
+                         [ 10A Inline Fuse ]
                                     │
                ┌────────────────────┴────────────────────┐
                │                                         │
@@ -207,16 +225,16 @@ The vehicle is partitioned into **4 vertical structural tiers** connected by M3 
        [ 7V Buck Converter ]                     [ 5V Buck Converter ]
        (Adjusted to 7.00V)                       (Adjusted to 5.00V)
                │                                         │
-               ▼                                         ├──► HC-SR04 VCC (5V)
-       L298N +12V (VS) Terminal
+               ▼                                         ├──► Servo (+) + 470–1000µF capacitor
+       L298N +12V (VS) Terminal                    ├──► HC-SR04 VCC (5V)
                │                                         └──► L298N +5V Logic [Jumper Removed]
                ▼
      [ Left & Right TT Motors ]
 
-Power-bank ground, Pi ground, ESP32 ground (through USB), L298N ground, buck grounds, servo ground, and sonar ground must be common.
+Power-bank ground, Pi ground, ESP32 ground (through USB), L298N ground, buck grounds, servo ground, and sonar ground must be common. The 3S LiPo positive path is: E-stop NC contact, then 10 A fuse, then the buck converters.
 ```
 
-> **Power checks still required:** The bank must power the Pi 5 and servo at the same time without voltage sag or resets. Use separate power branches from the bank, not the Pi GPIO header. The E-stop cuts the motor-battery rails; since the servo is now powered by the power bank, it remains powered when the E-stop is pressed, although firmware commands it to center. If the servo supply must also be cut, add an appropriately rated switch to its power branch. The L298N has a load-dependent voltage drop; measure motor stall current and verify driver, converters, wiring, fuse, and switch ratings. The listed 10 A fuse is not confirmed until those ratings are checked.
+> **Power checks still required:** The Pi power bank is Pi-only. The 5 V buck must power the servo, HC-SR04, and L298N logic. The E-stop must cut all motor-battery-powered rails because its NC contact is before the fuse. Measure motor stall current and verify driver, converter, wiring, fuse, and switch ratings. The listed 10 A fuse is not confirmed until those ratings are checked.
 
 ---
 
@@ -247,7 +265,7 @@ Power-bank ground, Pi ground, ESP32 ground (through USB), L298N ground, buck gro
 1. **Install Mid Plate:** Place the Layer 1 plate over the standoffs and secure with M3 countersunk screws.
 2. **Mount Breadboard & ESP32:** Peel the adhesive backing off the 400-point breadboard and press it into the recessed tray. Seat the ESP32 DevKit V1 straddling the center channel.
 3. **Mount L298N & Bucks:** Fasten the L298N module using 4× M3 × 8 mm standoffs. Fasten both buck converters into their trays using zip-ties or M3 screws.
-4. **Wire Power & E-Stop:** Install the 22 mm E-Stop button in the flange hole. Place the fuse as close as practical to the battery positive terminal, then wire the E-stop NC contact in series after the fuse. Wire the NO contact to ESP32 GPIO 27. Confirm the fuse and switch ratings against the actual wiring and motor current before use.
+4. **Wire Power & E-Stop:** Install the 22 mm E-Stop button in the flange hole. Wire the battery positive through the E-stop NC contact first, then through the fuse placed close to the battery. Wire the NO contact to ESP32 GPIO 27. Confirm the fuse and switch ratings against the actual wiring and motor current before use.
 5. **Adjust Buck Voltages:** Connect battery and use a multimeter to adjust the 7V buck to **7.00V** and the 5V buck to **5.00V** before making connections to components.
 6. **Install Upper Standoffs:** Thread 4× M3 × 35 mm hex standoffs into the Layer 1 top bosses.
 

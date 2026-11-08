@@ -64,7 +64,7 @@ void setSteeringNormalized(float norm) {
   // Convert us to LEDC 16-bit duty cycle at 50Hz (Period = 20,000 us)
   // duty = (us / 20000) * 65535
   uint32_t duty = (uint32_t)((us / 20000.0f) * 65535.0f);
-  ledcWrite(SERVO_LEDC_CH, duty);
+  ledcWrite(PIN_STEER_SERVO, duty);
 }
 
 void setMotorThrottle(float norm) {
@@ -84,7 +84,7 @@ void setMotorThrottle(float norm) {
   }
   // Convert microseconds to 16-bit LEDC duty at 50 Hz (20,000 us period)
   uint32_t duty = (uint32_t)((us / 20000.0f) * 65535.0f);
-  ledcWrite(ESC_LEDC_CH, duty);
+  ledcWrite(PIN_MOTOR_PWM, duty);
 
 #else
   // L298N Dual-wire H-Bridge (USE_ESC_MOTOR_DRIVER == 0)
@@ -92,21 +92,21 @@ void setMotorThrottle(float norm) {
   if (abs(norm) < 0.05f) {
     digitalWrite(PIN_MOTOR_DIR_A, LOW);
     digitalWrite(PIN_MOTOR_DIR_B, LOW);
-    ledcWrite(MOTOR_LEDC_CH, 0);
+    ledcWrite(PIN_MOTOR_PWM, 0);
   } else if (norm > 0.0f) {
     // Forward: IN1/IN3 HIGH, IN2/IN4 LOW
     digitalWrite(PIN_MOTOR_DIR_A, HIGH);
     digitalWrite(PIN_MOTOR_DIR_B, LOW);
     uint32_t pwm = (uint32_t)(MOTOR_MIN_START_PWM + norm * (MOTOR_MAX_SAFE_PWM - MOTOR_MIN_START_PWM));
     pwm = constrain(pwm, 0, MOTOR_MAX_SAFE_PWM);
-    ledcWrite(MOTOR_LEDC_CH, pwm);
+    ledcWrite(PIN_MOTOR_PWM, pwm);
   } else {
     // Reverse: IN1/IN3 LOW, IN2/IN4 HIGH
     digitalWrite(PIN_MOTOR_DIR_A, LOW);
     digitalWrite(PIN_MOTOR_DIR_B, HIGH);
     uint32_t pwm = (uint32_t)(MOTOR_MIN_START_PWM + abs(norm) * (MOTOR_MAX_SAFE_PWM - MOTOR_MIN_START_PWM));
     pwm = constrain(pwm, 0, MOTOR_MAX_SAFE_PWM);
-    ledcWrite(MOTOR_LEDC_CH, pwm);
+    ledcWrite(PIN_MOTOR_PWM, pwm);
   }
 #endif
 }
@@ -180,14 +180,12 @@ void setup() {
   digitalWrite(PIN_US_TRIG, LOW);
   pinMode(PIN_US_ECHO_CENTER, INPUT);
 
-  // Actuator LEDC Setup
-  ledcSetup(SERVO_LEDC_CH, SERVO_LEDC_FREQ, SERVO_LEDC_RES);
-  ledcAttachPin(PIN_STEER_SERVO, SERVO_LEDC_CH);
+  // Actuator LEDC Setup (Arduino-ESP32 v3.x API: ledcAttach replaces ledcSetup+ledcAttachPin)
+  ledcAttach(PIN_STEER_SERVO, SERVO_LEDC_FREQ, SERVO_LEDC_RES);
 
 #if USE_ESC_MOTOR_DRIVER
   // 1/10 RC ESC Setup: 50 Hz, 16-bit LEDC on Pin 19
-  ledcSetup(ESC_LEDC_CH, ESC_LEDC_FREQ, ESC_LEDC_RES);
-  ledcAttachPin(PIN_MOTOR_PWM, ESC_LEDC_CH);
+  ledcAttach(PIN_MOTOR_PWM, ESC_LEDC_FREQ, ESC_LEDC_RES);
 
   // Arm ESC by outputting neutral pulse (1500 us)
   setSteeringNormalized(0.0f);
@@ -201,8 +199,7 @@ void setup() {
   pinMode(PIN_MOTOR_DIR_B, OUTPUT);
   digitalWrite(PIN_MOTOR_DIR_A, LOW);
   digitalWrite(PIN_MOTOR_DIR_B, LOW);
-  ledcSetup(MOTOR_LEDC_CH, MOTOR_LEDC_FREQ, MOTOR_LEDC_RES);
-  ledcAttachPin(PIN_MOTOR_PWM, MOTOR_LEDC_CH);
+  ledcAttach(PIN_MOTOR_PWM, MOTOR_LEDC_FREQ, MOTOR_LEDC_RES);
   setSteeringNormalized(0.0f);
   setMotorThrottle(0.0f);
   Serial.println(F("[ESP32] L298N Motor Driver configured (20 kHz PWM on Pin 19)."));
